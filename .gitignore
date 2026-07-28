@@ -23,3 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 
+# Custom ignores
+package.json
+package-lock.json
+src/routes/index.tsx
+src/routes/paths.ts
