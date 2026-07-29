@@ -13,6 +13,7 @@ import {
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import Swal from 'sweetalert2'
+import { useAuth } from '../../contexts/authContext'
 import { ROUTES } from '../../routes/paths'
 
 type NavigationItem = {
@@ -63,6 +64,7 @@ const navigationItems: NavigationItem[] = [
 
 export default function Sidebar() {
   const navigate = useNavigate()
+  const { session, logout } = useAuth()
   const [showDropdown, setShowDropdown] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
@@ -94,7 +96,9 @@ export default function Sidebar() {
       iconColor: '#ff5252',
     }).then((result) => {
       if (result.isConfirmed) {
-        navigate(ROUTES.login)
+        logout()
+          .catch(() => undefined)
+          .then(() => navigate(ROUTES.login, { replace: true }))
       }
     })
   }
@@ -154,14 +158,26 @@ export default function Sidebar() {
           onClick={() => setShowDropdown(!showDropdown)}
           type="button"
         >
-          <span className="app-profile-avatar">AV</span>
+          <span className="app-profile-avatar">
+            {initials(session?.user.displayName)}
+          </span>
           <span className="app-profile-copy">
-            <strong>Admin Mode</strong>
-            <small>OmnichannelPOS</small>
+            <strong>{session?.user.displayName}</strong>
+            <small>{session?.tenant.name}</small>
           </span>
           <DownOutlined className={`app-profile-arrow ${showDropdown ? 'rotate-180' : ''}`} />
         </button>
       </div>
     </aside>
   )
+}
+
+function initials(displayName?: string): string {
+  if (!displayName) return 'U'
+  return displayName
+    .trim()
+    .split(/\s+/)
+    .slice(-2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('')
 }

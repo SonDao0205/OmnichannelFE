@@ -1,5 +1,6 @@
 export const ROUTES = {
   login: '/login',
+  changePassword: '/change-password',
   overview: '/overview',
   connect: '/connect',
   products: '/products',
@@ -8,4 +9,3 @@ export const ROUTES = {
   chat: '/chat',
   analytics: '/analytics',
 } as const
-
