@@ -1,20 +1,36 @@
 import {
-  ApiOutlined,
   AppstoreOutlined,
   BarChartOutlined,
   CustomerServiceOutlined,
   DownOutlined,
+  GiftOutlined,
+  InboxOutlined,
   LogoutOutlined,
   ProductOutlined,
-  ShopOutlined,
   ShoppingCartOutlined,
   TeamOutlined,
+  TruckOutlined,
 } from '@ant-design/icons'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import Swal from 'sweetalert2'
 import { useAuth } from '../../contexts/authContext'
 import { ROUTES } from '../../routes/paths'
+
+// Icon SMARTHUB logo (custom S-mark)
+function SmartHubIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect width="24" height="24" rx="5" fill="none" />
+      <path
+        d="M6 8C6 7.448 6.448 7 7 7h4a3 3 0 0 1 0 6H7a1 1 0 0 0 0 2h5a1 1 0 0 1 0 2H7a3 3 0 0 1 0-6h4a1 1 0 0 0 0-2H7a1 1 0 0 1-1-1Z"
+        fill="white"
+      />
+      <circle cx="18" cy="7.5" r="2.5" fill="white" />
+      <circle cx="18" cy="16.5" r="2.5" fill="white" />
+    </svg>
+  )
+}
 
 type NavigationItem = {
   label: string
@@ -23,6 +39,7 @@ type NavigationItem = {
   notification?: boolean
 }
 
+// Danh sách menu khớp 100% ảnh mẫu
 const navigationItems: NavigationItem[] = [
   {
     label: 'Tổng quan',
@@ -36,14 +53,14 @@ const navigationItems: NavigationItem[] = [
     notification: true,
   },
   {
-    label: 'Liên kết sàn',
-    to: ROUTES.connect,
-    icon: <ApiOutlined />,
-  },
-  {
     label: 'Quản lý Sản phẩm',
     to: ROUTES.products,
     icon: <ProductOutlined />,
+  },
+  {
+    label: 'Quản lý kho',
+    to: ROUTES.warehouse,
+    icon: <InboxOutlined />,
   },
   {
     label: 'Quản lý Đơn hàng',
@@ -51,12 +68,22 @@ const navigationItems: NavigationItem[] = [
     icon: <ShoppingCartOutlined />,
   },
   {
+    label: 'Vận chuyển',
+    to: ROUTES.shipping,
+    icon: <TruckOutlined />,
+  },
+  {
     label: 'Khách hàng CRM',
     to: ROUTES.customers,
     icon: <TeamOutlined />,
   },
   {
-    label: 'Báo cáo phân tích',
+    label: 'Khuyến mãi',
+    to: ROUTES.promotions,
+    icon: <GiftOutlined />,
+  },
+  {
+    label: 'Báo cáo doanh số',
     to: ROUTES.analytics,
     icon: <BarChartOutlined />,
   },
@@ -105,18 +132,20 @@ export default function Sidebar() {
 
   return (
     <aside className="app-sidebar">
+      {/* Brand */}
       <div className="app-brand">
         <NavLink className="app-logo" to={ROUTES.overview}>
           <span className="app-logo-mark" aria-hidden="true">
-            <ShopOutlined />
+            <SmartHubIcon />
           </span>
           <span className="app-logo-copy">
-            <strong>OMNICHANNEL</strong>
+            <strong>SMARTHUB</strong>
             <small>MANAGEMENT SUITE</small>
           </span>
         </NavLink>
       </div>
 
+      {/* Navigation */}
       <nav className="app-navigation" aria-label="Điều hướng chính">
         {navigationItems.map((item) => (
           <NavLink
@@ -140,6 +169,7 @@ export default function Sidebar() {
         ))}
       </nav>
 
+      {/* Profile / Logout */}
       <div className="app-profile-container" ref={dropdownRef}>
         {showDropdown && (
           <div className="app-profile-dropdown">
@@ -159,11 +189,11 @@ export default function Sidebar() {
           type="button"
         >
           <span className="app-profile-avatar">
-            {initials(session?.user.displayName)}
+            {initials(session?.user.displayName || 'Khôi Nguyễn')}
           </span>
           <span className="app-profile-copy">
-            <strong>{session?.user.displayName}</strong>
-            <small>{session?.tenant.name}</small>
+            <strong>{session?.user.displayName || 'Agent Mode'}</strong>
+            <small>{session?.tenant.name || 'Khôi Nguyễn'}</small>
           </span>
           <DownOutlined className={`app-profile-arrow ${showDropdown ? 'rotate-180' : ''}`} />
         </button>

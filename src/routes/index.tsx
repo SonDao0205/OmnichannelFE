@@ -11,6 +11,9 @@ import CustomerScreen from '../pages/customer/CustomerScreen'
 import OrderScreen from '../pages/order/OrderScreen'
 import OverviewScreen from '../pages/overview/OverviewScreen'
 import ProductScreen from '../pages/products/ProductScreen'
+import WarehouseScreen from '../pages/warehouse/WarehouseScreen'
+import ShippingScreen from '../pages/shipping/ShippingScreen'
+import PromotionsScreen from '../pages/promotions/PromotionsScreen'
 import { ROUTES } from './paths'
 
 export const router = createBrowserRouter([
@@ -51,12 +54,24 @@ export const router = createBrowserRouter([
         element: <ProductScreen />,
       },
       {
+        path: ROUTES.warehouse,
+        element: <WarehouseScreen />,
+      },
+      {
         path: ROUTES.orders,
         element: <OrderScreen />,
       },
       {
+        path: ROUTES.shipping,
+        element: <ShippingScreen />,
+      },
+      {
         path: ROUTES.customers,
         element: <CustomerScreen />,
+      },
+      {
+        path: ROUTES.promotions,
+        element: <PromotionsScreen />,
       },
       {
         path: ROUTES.chat,
