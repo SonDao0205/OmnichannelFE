@@ -58,6 +58,8 @@ const callbackErrors: Record<string, string> = {
   INVALID_OAUTH_STATE: 'Phiên liên kết không hợp lệ. Vui lòng thử lại.',
   OAUTH_STATE_EXPIRED: 'Phiên liên kết đã hết hạn. Vui lòng thử lại.',
   OAUTH_ACCESS_DENIED: 'Bạn đã từ chối cấp quyền cho hệ thống.',
+  SHOP_ALREADY_CONNECTED_TO_ANOTHER_TENANT:
+    'Shop này đã được liên kết với một doanh nghiệp khác.',
 }
 
 function formatDate(value: string | null): string {
