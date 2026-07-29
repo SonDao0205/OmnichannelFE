@@ -5,6 +5,7 @@ import {
   DownOutlined,
   GiftOutlined,
   InboxOutlined,
+  LinkOutlined,
   LogoutOutlined,
   ProductOutlined,
   ShoppingCartOutlined,
@@ -51,6 +52,11 @@ const navigationItems: NavigationItem[] = [
     to: ROUTES.chat,
     icon: <CustomerServiceOutlined />,
     notification: true,
+  },
+  {
+    label: 'Liên kết sàn',
+    to: ROUTES.connect,
+    icon: <LinkOutlined />,
   },
   {
     label: 'Quản lý Sản phẩm',
