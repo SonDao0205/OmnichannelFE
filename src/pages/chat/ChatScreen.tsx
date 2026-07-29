@@ -1,5 +1,230 @@
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  fetchChatConversationDetail,
+  fetchChatConversations,
+  fetchChatMessages,
+  fetchChatOrderHistory,
+  markChatConversationRead,
+  sendChatMessage,
+  type ChatChannelFilter,
+  type ChatConversation,
+  type ChatConversationDetail,
+  type ChatMessage,
+  type ChatOrderHistory,
+} from '../../apis/chatApi'
+import ChatWindow from '../../components/chat/ChatWindow'
+import ConversationInbox from '../../components/chat/ConversationInbox'
+import CustomerProfilePanel from '../../components/chat/CustomerProfilePanel'
+import { useChatRealtime } from '../../hooks/useChatRealtime'
+import './chat.css'
+
+function getMessageTime(message: ChatMessage) {
+  return new Date(
+    message.externalCreatedAt ??
+      message.sentAt ??
+      message.queuedAt ??
+      message.createdAt,
+  ).getTime()
+}
+
+function upsertMessage(messages: ChatMessage[], nextMessage: ChatMessage) {
+  const exists = messages.some((message) => message.id === nextMessage.id)
+  const nextMessages = exists
+    ? messages.map((message) =>
+        message.id === nextMessage.id ? nextMessage : message,
+      )
+    : [...messages, nextMessage]
+
+  return nextMessages.sort((first, second) => {
+    return getMessageTime(first) - getMessageTime(second)
+  })
+}
+
+function markConversationLocallyRead(
+  conversations: ChatConversation[],
+  conversationId: string,
+) {
+  return conversations.map((conversation) =>
+    conversation.id === conversationId
+      ? {
+          ...conversation,
+          unreadCount: 0,
+        }
+      : conversation,
+  )
+}
+
 export default function ChatScreen() {
+  const [channel, setChannel] = useState<ChatChannelFilter>('all')
+  const [selectedConversationId, setSelectedConversationId] = useState<
+    string | null
+  >(null)
+  const [conversations, setConversations] = useState<ChatConversation[]>([])
+  const [conversationDetail, setConversationDetail] =
+    useState<ChatConversationDetail | null>(null)
+  const [orderHistory, setOrderHistory] = useState<ChatOrderHistory | null>(null)
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [isInboxLoading, setIsInboxLoading] = useState(false)
+  const [isThreadLoading, setIsThreadLoading] = useState(false)
+  const [isSending, setIsSending] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  const selectedConversation = useMemo(
+    () =>
+      conversations.find(
+        (conversation) => conversation.id === selectedConversationId,
+      ) ?? null,
+    [conversations, selectedConversationId],
+  )
+
+  const loadConversations = useCallback(
+    async (silent = false) => {
+      if (!silent) setIsInboxLoading(true)
+
+      try {
+        const data = await fetchChatConversations(channel)
+        setConversations(data)
+        setSelectedConversationId((currentId) =>
+          currentId && data.some((item) => item.id === currentId)
+            ? currentId
+            : data[0]?.id ?? null,
+        )
+        setErrorMessage(null)
+      } catch {
+        setErrorMessage('Không tải được danh sách hội thoại.')
+      } finally {
+        if (!silent) setIsInboxLoading(false)
+      }
+    },
+    [channel],
+  )
+
+  useEffect(() => {
+    void loadConversations()
+  }, [loadConversations])
+
+  useEffect(() => {
+    if (!selectedConversationId) {
+      setConversationDetail(null)
+      setOrderHistory(null)
+      setMessages([])
+      return
+    }
+
+    async function loadThread(conversationId: string) {
+      setIsThreadLoading(true)
+
+      try {
+        const [detail, threadMessages, orders] = await Promise.all([
+          fetchChatConversationDetail(conversationId),
+          fetchChatMessages(conversationId),
+          fetchChatOrderHistory(conversationId),
+        ])
+
+        setConversationDetail(detail)
+        setOrderHistory(orders)
+        setMessages(threadMessages)
+        setConversations((currentConversations) =>
+          markConversationLocallyRead(currentConversations, conversationId),
+        )
+
+        if (detail.unreadCount > 0) {
+          const readDetail = await markChatConversationRead(conversationId)
+          setConversationDetail(readDetail)
+          setConversations((currentConversations) =>
+            markConversationLocallyRead(currentConversations, conversationId),
+          )
+        }
+
+        setErrorMessage(null)
+      } catch {
+        setErrorMessage('Không tải được nội dung hội thoại.')
+      } finally {
+        setIsThreadLoading(false)
+      }
+    }
+
+    void loadThread(selectedConversationId)
+  }, [selectedConversationId])
+
+  const handleMessageCreated = useCallback(
+    (payload: { conversationId: string; message: ChatMessage }) => {
+      if (payload.conversationId === selectedConversationId) {
+        setMessages((currentMessages) =>
+          upsertMessage(currentMessages, payload.message),
+        )
+        setConversations((currentConversations) =>
+          markConversationLocallyRead(currentConversations, payload.conversationId),
+        )
+
+        if (payload.message.direction === 'INBOUND') {
+          void markChatConversationRead(payload.conversationId).finally(() => {
+            void loadConversations(true)
+          })
+          return
+        }
+      }
+
+      void loadConversations(true)
+    },
+    [loadConversations, selectedConversationId],
+  )
+
+  const handleConversationUpdated = useCallback(() => {
+    void loadConversations(true)
+  }, [loadConversations])
+
+  useChatRealtime({
+    conversationId: selectedConversationId,
+    onMessageCreated: handleMessageCreated,
+    onConversationUpdated: handleConversationUpdated,
+  })
+
+  const handleSendMessage = async (text: string) => {
+    if (!selectedConversationId) return false
+
+    setIsSending(true)
+
+    try {
+      const message = await sendChatMessage(selectedConversationId, text)
+      setMessages((currentMessages) => upsertMessage(currentMessages, message))
+      await loadConversations(true)
+      setErrorMessage(null)
+      return true
+    } catch {
+      setErrorMessage(
+        'Gửi tin nhắn thất bại. Kiểm tra token marketplace hoặc ChatBE.',
+      )
+      return false
+    } finally {
+      setIsSending(false)
+    }
+  }
+
   return (
-    <div>ChatScreen</div>
+    <section className="chat-page" aria-label="Quản lý hội thoại đa kênh">
+      <ConversationInbox
+        channel={channel}
+        conversations={conversations}
+        isLoading={isInboxLoading}
+        selectedConversationId={selectedConversationId}
+        onChannelChange={setChannel}
+        onSelectConversation={setSelectedConversationId}
+      />
+      <ChatWindow
+        conversation={selectedConversation}
+        detail={conversationDetail}
+        errorMessage={errorMessage}
+        isLoading={isThreadLoading}
+        isSending={isSending}
+        messages={messages}
+        onSendMessage={handleSendMessage}
+      />
+      <CustomerProfilePanel
+        conversation={selectedConversation}
+        detail={conversationDetail}
+        orderHistory={orderHistory}
+      />
+    </section>
   )
 }
