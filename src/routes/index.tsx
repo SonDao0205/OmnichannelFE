@@ -1,7 +1,10 @@
 import { Navigate, createBrowserRouter } from 'react-router-dom'
 import AppLayout from '../components/layouts/AppLayout'
+import ProtectedRoute from '../components/auth/ProtectedRoute'
+import PasswordChangeRoute from '../components/auth/PasswordChangeRoute'
 import AnalystScreen from '../pages/analyst/AnalystScreen'
 import LoginScreen from '../pages/auth/LoginScreen'
+import FirstLoginPasswordScreen from '../pages/auth/FirstLoginPasswordScreen'
 import ChatScreen from '../pages/chat/ChatScreen'
 import ConnectScreen from '../pages/connect/ConnectScreen'
 import CustomerScreen from '../pages/customer/CustomerScreen'
@@ -16,8 +19,20 @@ export const router = createBrowserRouter([
     element: <LoginScreen />,
   },
   {
+    path: ROUTES.changePassword,
+    element: (
+      <PasswordChangeRoute>
+        <FirstLoginPasswordScreen />
+      </PasswordChangeRoute>
+    ),
+  },
+  {
     path: '/',
-    element: <AppLayout />,
+    element: (
+      <ProtectedRoute>
+        <AppLayout />
+      </ProtectedRoute>
+    ),
     children: [
       {
         index: true,

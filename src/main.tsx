@@ -5,14 +5,17 @@ import { RouterProvider } from 'react-router-dom'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import './index.css'
+import { AuthProvider } from './contexts/AuthProvider'
 import { router } from './routes'
 import { store } from './stores/stores'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Provider store={store}>
-      <RouterProvider router={router} />
-      <ToastContainer position="top-right" autoClose={3000} theme="colored" />
+      <AuthProvider>
+        <RouterProvider router={router} />
+        <ToastContainer position="top-right" autoClose={3000} theme="colored" />
+      </AuthProvider>
     </Provider>
   </StrictMode>,
 )

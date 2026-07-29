@@ -1,0 +1,15 @@
+.auth-loading {
+  min-height: 100svh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  color: #61708a;
+  background: #f5f7fb;
+  font-size: 14px;
+}
+
+.auth-loading .anticon {
+  color: #2d68e8;
+  font-size: 25px;
+}
