@@ -15,6 +15,7 @@ import {
 import ChatWindow from '../../components/chat/ChatWindow'
 import ConversationInbox from '../../components/chat/ConversationInbox'
 import CustomerProfilePanel from '../../components/chat/CustomerProfilePanel'
+import { useAuth } from '../../contexts/authContext'
 import { useChatRealtime } from '../../hooks/useChatRealtime'
 import './chat.css'
 
@@ -55,6 +56,8 @@ function markConversationLocallyRead(
 }
 
 export default function ChatScreen() {
+  const { session } = useAuth()
+  const tenantId = session?.tenant.id ?? null
   const [channel, setChannel] = useState<ChatChannelFilter>('all')
   const [selectedConversationId, setSelectedConversationId] = useState<
     string | null
@@ -79,10 +82,16 @@ export default function ChatScreen() {
 
   const loadConversations = useCallback(
     async (silent = false) => {
+      if (!tenantId) {
+        setConversations([])
+        setSelectedConversationId(null)
+        return
+      }
+
       if (!silent) setIsInboxLoading(true)
 
       try {
-        const data = await fetchChatConversations(channel)
+        const data = await fetchChatConversations(tenantId, channel)
         setConversations(data)
         setSelectedConversationId((currentId) =>
           currentId && data.some((item) => item.id === currentId)
@@ -96,7 +105,7 @@ export default function ChatScreen() {
         if (!silent) setIsInboxLoading(false)
       }
     },
-    [channel],
+    [channel, tenantId],
   )
 
   useEffect(() => {
@@ -112,13 +121,15 @@ export default function ChatScreen() {
     }
 
     async function loadThread(conversationId: string) {
+      if (!tenantId) return
+
       setIsThreadLoading(true)
 
       try {
         const [detail, threadMessages, orders] = await Promise.all([
-          fetchChatConversationDetail(conversationId),
-          fetchChatMessages(conversationId),
-          fetchChatOrderHistory(conversationId),
+          fetchChatConversationDetail(tenantId, conversationId),
+          fetchChatMessages(tenantId, conversationId),
+          fetchChatOrderHistory(tenantId, conversationId),
         ])
 
         setConversationDetail(detail)
@@ -129,7 +140,10 @@ export default function ChatScreen() {
         )
 
         if (detail.unreadCount > 0) {
-          const readDetail = await markChatConversationRead(conversationId)
+          const readDetail = await markChatConversationRead(
+            tenantId,
+            conversationId,
+          )
           setConversationDetail(readDetail)
           setConversations((currentConversations) =>
             markConversationLocallyRead(currentConversations, conversationId),
@@ -145,7 +159,7 @@ export default function ChatScreen() {
     }
 
     void loadThread(selectedConversationId)
-  }, [selectedConversationId])
+  }, [selectedConversationId, tenantId])
 
   const handleMessageCreated = useCallback(
     (payload: { conversationId: string; message: ChatMessage }) => {
@@ -158,16 +172,21 @@ export default function ChatScreen() {
         )
 
         if (payload.message.direction === 'INBOUND') {
-          void markChatConversationRead(payload.conversationId).finally(() => {
-            void loadConversations(true)
-          })
+          if (tenantId) {
+            void markChatConversationRead(
+              tenantId,
+              payload.conversationId,
+            ).finally(() => {
+              void loadConversations(true)
+            })
+          }
           return
         }
       }
 
       void loadConversations(true)
     },
-    [loadConversations, selectedConversationId],
+    [loadConversations, selectedConversationId, tenantId],
   )
 
   const handleConversationUpdated = useCallback(() => {
@@ -181,12 +200,12 @@ export default function ChatScreen() {
   })
 
   const handleSendMessage = async (text: string) => {
-    if (!selectedConversationId) return false
+    if (!selectedConversationId || !tenantId) return false
 
     setIsSending(true)
 
     try {
-      const message = await sendChatMessage(selectedConversationId, text)
+      const message = await sendChatMessage(tenantId, selectedConversationId, text)
       setMessages((currentMessages) => upsertMessage(currentMessages, message))
       await loadConversations(true)
       setErrorMessage(null)
