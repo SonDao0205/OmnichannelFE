@@ -25,6 +25,7 @@ export interface Product {
   price: number
   costPrice: number
   totalStock: number
+  minStockAlert?: number
   description?: string
   createdAt?: string
 }

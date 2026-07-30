@@ -26,6 +26,7 @@ import {
   closeModal,
 } from '../../stores/slices/productSlice'
 import type { Product } from '../../types/product'
+import { productErrorMessage } from '../../apis/productApi'
 import ProductModal from './ProductModal'
 import './products.css'
 
@@ -92,19 +93,84 @@ export default function ProductScreen() {
   ).length
   const countDraft = items.filter((i) => i.status === 'DRAFT').length
 
+  const handleSyncImpl = async () => {
+    try {
+      const result = await dispatch(syncMarketplacesThunk()).unwrap()
+      await dispatch(fetchProductsThunk()).unwrap()
+      if (result.errorCount > 0) {
+        message.warning(
+          `Đã nhập ${result.importedCount ?? 0} sản phẩm mới, đồng bộ thành công ${result.successCount}, thất bại ${result.errorCount}.`,
+        )
+      } else {
+        message.success(
+          `Đã nhập ${result.importedCount ?? 0} sản phẩm mới từ sàn và đồng bộ ${result.successCount} lượt thành công.`,
+        )
+      }
+    } catch (error) {
+      message.error(productErrorMessage(error))
+    }
+  }
+
+  const handleDeleteImpl = async (id: string) => {
+    try {
+      await dispatch(deleteProductThunk(id)).unwrap()
+      message.success('Đã xóa sản phẩm thành công')
+    } catch (error) {
+      message.error(productErrorMessage(error))
+    }
+  }
+
+  const handleSaveModalImpl = async (values: Partial<Product>) => {
+    try {
+      let savedProduct: Product
+      if (selectedProduct) {
+        savedProduct = await dispatch(
+          updateProductThunk({
+            id: selectedProduct.id,
+            data: { ...selectedProduct, ...values },
+          }),
+        ).unwrap()
+      } else {
+        savedProduct = await dispatch(createProductThunk(values)).unwrap()
+      }
+      const requestedMarketplaces = values.marketplaces ?? []
+      const syncedAll = requestedMarketplaces.every((marketplace) =>
+        savedProduct.marketplaces.includes(marketplace),
+      )
+      if (requestedMarketplaces.length > 0 && !syncedAll) {
+        message.warning(
+          'Đã lưu sản phẩm, nhưng có sàn chưa kết nối hoặc đồng bộ thất bại.',
+        )
+      } else if (selectedProduct) {
+        message.success('Đã cập nhật và đồng bộ sản phẩm thành công!')
+      } else {
+        message.success('Đã thêm và đồng bộ sản phẩm mới thành công!')
+      }
+      dispatch(closeModal())
+    } catch (error) {
+      message.error(productErrorMessage(error))
+    }
+  }
+
   const handleSync = () => {
+    void handleSyncImpl()
+    return
     dispatch(syncMarketplacesThunk())
     message.success('Đã gửi yêu cầu đồng bộ sản phẩm từ các sàn!')
   }
 
   const handleDelete = (id: string) => {
+    void handleDeleteImpl(id)
+    return
     dispatch(deleteProductThunk(id))
     message.success('Đã xóa sản phẩm thành công')
   }
 
   const handleSaveModal = (values: Partial<Product>) => {
+    void handleSaveModalImpl(values)
+    return
     if (selectedProduct) {
-      dispatch(updateProductThunk({ id: selectedProduct.id, data: values }))
+      dispatch(updateProductThunk({ id: selectedProduct?.id ?? '', data: values }))
       message.success('Đã cập nhật sản phẩm thành công!')
     } else {
       dispatch(createProductThunk(values))

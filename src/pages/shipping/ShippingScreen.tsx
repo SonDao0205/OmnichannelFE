@@ -28,25 +28,22 @@ export default function ShippingScreen() {
   const countPicked   = overview?.countPicked   ?? 0
   const countTransit  = overview?.countInTransit ?? 0
   const countFailed   = overview?.countFailed   ?? 0
+  const countSuccess  = overview?.countSuccess ?? 0
+  const ghtkAvgHours  = overview?.ghtkAvgHours ?? 0
+  const ghnAvgHours   = overview?.ghnAvgHours ?? 0
+  const ghtkRate      = overview?.ghtkSuccessRate ?? 0
+  const ghnRate       = overview?.ghnSuccessRate ?? 0
 
-  // Dùng dữ liệu thật từ shipmentItems, fallback sang MOCK nếu rỗng
-  const MOCK_SHIPMENTS = [
-    { id: '1', waybillCode: 'GHTK_S92A1A42', orderCode: '#SHP-92641', carrier: 'GHTK', destination: 'Cầu Giấy, Hà Nội', codAmount: 489000, milestone: 'Shipper đã lấy hàng', milestoneType: 'picked' as const },
-    { id: '2', waybillCode: 'GHN_VNE715A', orderCode: '#TKT-48195', carrier: 'GHN', destination: 'Quận 1, TP. HCM', codAmount: 718000, milestone: 'Đang luân chuyển kho', milestoneType: 'transit' as const },
-  ]
-
-  const displayShipments = shipmentItems.length > 0
-    ? shipmentItems.map(s => ({
-        id: s.id,
-        waybillCode: s.waybillCode,
-        orderCode: s.orderId || '—',
-        carrier: s.carrierName || '—',
-        destination: s.destination || '—',
-        codAmount: s.codAmount,
-        milestone: s.latestMilestone || '—',
-        milestoneType: s.milestoneType,
-      }))
-    : MOCK_SHIPMENTS
+  const displayShipments = shipmentItems.map(s => ({
+    id: s.id,
+    waybillCode: s.waybillCode,
+    orderCode: s.orderId || '—',
+    carrier: s.carrierName || '—',
+    destination: s.destination || '—',
+    codAmount: s.codAmount,
+    milestone: s.latestMilestone || '—',
+    milestoneType: s.milestoneType,
+  }))
 
   const filteredShipments = displayShipments.filter(s => {
     const q = trackingSearch.toLowerCase().trim()
@@ -67,7 +64,7 @@ export default function ShippingScreen() {
 
           <button className="ship-date-badge" type="button">
             <CalendarOutlined />
-            7 ngày qua (01/07 – 07/07/2026)
+            Dữ liệu vận chuyển hiện tại
           </button>
 
           <select className="ship-branch-select">
@@ -88,25 +85,25 @@ export default function ShippingScreen() {
         <div className="ship-stat-card">
           <div className="ship-stat-label">Chờ lấy hàng</div>
           <div className="ship-stat-number">{String(countWaiting).padStart(2, '0')}</div>
-          <div className="ship-stat-sub">GDD: 0.0</div>
+          <div className="ship-stat-sub">{countWaiting} vận đơn</div>
         </div>
 
         <div className="ship-stat-card">
           <div className="ship-stat-label">Đã lấy hàng</div>
           <div className="ship-stat-number">{String(countPicked)}</div>
-          <div className="ship-stat-sub">GDD: 4.2M</div>
+          <div className="ship-stat-sub">{countPicked} vận đơn</div>
         </div>
 
         <div className="ship-stat-card highlighted">
           <div className="ship-stat-label">Đang giao hàng</div>
           <div className="ship-stat-number">{countTransit.toLocaleString('vi-VN')}</div>
-          <div className="ship-stat-sub">GDD: 52.4M</div>
+          <div className="ship-stat-sub">{countTransit} vận đơn</div>
         </div>
 
         <div className="ship-stat-card">
           <div className="ship-stat-label">Chờ giao lại</div>
-          <div className="ship-stat-number">3</div>
-          <div className="ship-stat-sub">GDD: 8MM</div>
+          <div className="ship-stat-number">0</div>
+          <div className="ship-stat-sub">0 vận đơn</div>
         </div>
 
         <div className="ship-stat-card">
@@ -114,13 +111,13 @@ export default function ShippingScreen() {
           <div className={`ship-stat-number ${countFailed > 0 ? 'danger' : ''}`}>
             {countFailed}
           </div>
-          <div className="ship-stat-sub">GDD: 5C</div>
+          <div className="ship-stat-sub">{countFailed} vận đơn</div>
         </div>
 
         <div className="ship-stat-card">
           <div className="ship-stat-label">Đã đối soát kỳ này</div>
-          <div className="ship-stat-number">1,105</div>
-          <div className="ship-stat-sub">đã xem vs</div>
+          <div className="ship-stat-number">{countSuccess.toLocaleString('vi-VN')}</div>
+          <div className="ship-stat-sub">{countSuccess} vận đơn thành công</div>
         </div>
 
       </div>
@@ -139,18 +136,18 @@ export default function ShippingScreen() {
           <div className="ship-bar-row">
             <span className="ship-bar-label">Giao Hàng Tiết Kiệm (GHTK)</span>
             <div className="ship-bar-track">
-              <div className="ship-bar-fill ghtk-time" style={{ width: '75%' }} />
+              <div className="ship-bar-fill ghtk-time" style={{ width: `${Math.min(100, ghtkAvgHours / 0.3)}%` }} />
             </div>
-            <span className="ship-bar-value">22.5 Giờ</span>
+            <span className="ship-bar-value">{ghtkAvgHours.toFixed(1)} Giờ</span>
           </div>
 
           {/* GHN */}
           <div className="ship-bar-row">
             <span className="ship-bar-label">Giao Hàng Nhanh (GHN)</span>
             <div className="ship-bar-track">
-              <div className="ship-bar-fill ghn-time" style={{ width: '88%' }} />
+              <div className="ship-bar-fill ghn-time" style={{ width: `${Math.min(100, ghnAvgHours / 0.3)}%` }} />
             </div>
-            <span className="ship-bar-value">28.0 Giờ</span>
+            <span className="ship-bar-value">{ghnAvgHours.toFixed(1)} Giờ</span>
           </div>
         </div>
 
@@ -165,18 +162,18 @@ export default function ShippingScreen() {
           <div className="ship-bar-row">
             <span className="ship-bar-label">GHTK</span>
             <div className="ship-bar-track">
-              <div className="ship-bar-fill ghtk-rate" style={{ width: '98.2%' }} />
+              <div className="ship-bar-fill ghtk-rate" style={{ width: `${ghtkRate}%` }} />
             </div>
-            <span className="ship-bar-value">98.2%</span>
+            <span className="ship-bar-value">{ghtkRate.toFixed(1)}%</span>
           </div>
 
           {/* GHN */}
           <div className="ship-bar-row">
             <span className="ship-bar-label">GHN</span>
             <div className="ship-bar-track">
-              <div className="ship-bar-fill ghn-rate" style={{ width: '95.4%' }} />
+              <div className="ship-bar-fill ghn-rate" style={{ width: `${ghnRate}%` }} />
             </div>
-            <span className="ship-bar-value">95.4%</span>
+            <span className="ship-bar-value">{ghnRate.toFixed(1)}%</span>
           </div>
         </div>
 

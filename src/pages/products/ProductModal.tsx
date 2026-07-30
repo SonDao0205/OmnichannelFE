@@ -27,7 +27,7 @@ export default function ProductModal({ open, product, onCancel, onSave }: Produc
     } else {
       form.resetFields()
       form.setFieldsValue({
-        marketplaces: ['Shopee'],
+        marketplaces: ['TikTok Shop', 'Lazada'],
         totalStock: 50,
       })
     }
@@ -126,7 +126,7 @@ export default function ProductModal({ open, product, onCancel, onSave }: Produc
         </Row>
 
         <Form.Item name="marketplaces" label="Sàn thương mại điện tử liên kết">
-          <Checkbox.Group options={['Shopee', 'Lazada', 'TikTok Shop'] as MarketplaceType[]} />
+          <Checkbox.Group options={['TikTok Shop', 'Lazada'] as MarketplaceType[]} />
         </Form.Item>
       </Form>
     </Modal>

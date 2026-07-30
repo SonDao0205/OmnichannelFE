@@ -23,9 +23,15 @@ export default function OrderDetailModal({ open, order, onClose }: OrderDetailMo
 
   if (!order) return null
 
-  const handleStatusChange = (newStatus: OrderStatus) => {
-    dispatch(updateOrderStatusThunk({ orderId: order.id, status: newStatus }))
-    message.success(`Đã chuyển trạng thái đơn hàng sang: ${newStatus}`)
+  const handleStatusChange = async (newStatus: OrderStatus) => {
+    try {
+      await dispatch(
+        updateOrderStatusThunk({ orderId: order.id, status: newStatus }),
+      ).unwrap()
+      message.success(`Đã cập nhật trạng thái đơn hàng: ${newStatus}`)
+    } catch {
+      message.error('Cập nhật thất bại. Trạng thái trên sàn chưa thay đổi.')
+    }
   }
 
   const formatVND = (num: number) => `${num.toLocaleString('vi-VN')}đ`

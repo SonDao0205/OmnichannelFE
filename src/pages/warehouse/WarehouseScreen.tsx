@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   SearchOutlined,
   FileExcelOutlined,
@@ -10,11 +10,9 @@ import {
   PictureOutlined,
   MoreOutlined,
 } from '@ant-design/icons'
+import { productApi } from '../../apis/productApi'
 import './warehouse.css'
 
-/* ============================================================
-   MOCK DATA — thay bằng API thật khi backend sẵn sàng
-   ============================================================ */
 type WhStockStatus = 'LOW' | 'NORMAL' | 'OVERSTOCK'
 
 interface WhProduct {
@@ -30,75 +28,6 @@ interface WhProduct {
   daysInStock?: number // số ngày tồn kho (cho cảnh báo lâu)
 }
 
-const MOCK_PRODUCTS: WhProduct[] = [
-  {
-    id: '1',
-    name: 'Áo khoác denim nam AK-204',
-    skus: ['AK-201', 'AK-202', 'AK-203-L'],
-    category: 'Áo khoác / Outerwear',
-    costPrice: 290000,
-    quantity: 2,
-    minStock: 10,
-    maxStock: 300,
-    daysInStock: 5,
-  },
-  {
-    id: '2',
-    name: 'Quần jeans slim fit cao cấp',
-    skus: ['JN-SLN-001-M', 'JN-SLN-002-M'],
-    category: 'Quần Jean / Denim',
-    costPrice: 210000,
-    quantity: 84,
-    minStock: 20,
-    maxStock: 300,
-    daysInStock: 30,
-  },
-  {
-    id: '3',
-    name: 'Áo len trơn basic Autumn',
-    skus: ['ART-SOL-001-S', 'ART-SOL-001-M', 'ART-SOL-001-XL'],
-    category: 'Áo thun & Polo',
-    costPrice: 145000,
-    quantity: 210,
-    minStock: 20,
-    maxStock: 180,
-    daysInStock: 95,
-  },
-  {
-    id: '4',
-    name: 'Váy maxi hoa nhí mùa hè',
-    skus: ['VM-HOA-002-S', 'VM-HOA-002-M'],
-    category: 'Váy / Đầm',
-    costPrice: 185000,
-    quantity: 47,
-    minStock: 15,
-    maxStock: 200,
-    daysInStock: 12,
-  },
-  {
-    id: '5',
-    name: 'Áo thun oversize unisex',
-    skus: ['AT-OVS-001-L', 'AT-OVS-001-XL', 'AT-OVS-001-2XL'],
-    category: 'Áo thun & Polo',
-    costPrice: 95000,
-    quantity: 3,
-    minStock: 15,
-    maxStock: 300,
-    daysInStock: 8,
-  },
-  {
-    id: '6',
-    name: 'Quần short kaki nam',
-    skus: ['QS-KAK-003-M', 'QS-KAK-003-L'],
-    category: 'Quần Short / Bermuda',
-    costPrice: 120000,
-    quantity: 320,
-    minStock: 20,
-    maxStock: 250,
-    daysInStock: 110,
-  },
-]
-
 function getStockStatus(p: WhProduct): WhStockStatus {
   if (p.quantity <= p.minStock) return 'LOW'
   if (p.quantity >= p.maxStock) return 'OVERSTOCK'
@@ -109,17 +38,56 @@ function getStockStatus(p: WhProduct): WhStockStatus {
    MAIN COMPONENT
    ============================================================ */
 export default function WarehouseScreen() {
+  const [products, setProducts] = useState<WhProduct[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('ALL')
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [sortMode, setSortMode] = useState<'qty_desc' | 'updated'>('qty_desc')
 
+  useEffect(() => {
+    let active = true
+    productApi.fetchProducts('', '', 0, 200)
+      .then(items => {
+        if (!active) return
+        const now = Date.now()
+        setProducts(items.map(product => {
+          const minStock = product.minStockAlert ?? 5
+          const createdAt = product.createdAt ? new Date(product.createdAt).getTime() : now
+          return {
+            id: product.id,
+            name: product.name,
+            skus: product.variants.map(variant => variant.sku),
+            category: product.category || 'Chưa phân loại',
+            costPrice: product.costPrice,
+            quantity: product.totalStock,
+            minStock,
+            maxStock: Math.max(100, minStock * 10),
+            imageUrl: product.imageUrl,
+            daysInStock: Math.max(0, Math.floor((now - createdAt) / 86_400_000)),
+          }
+        }))
+        setLoadError('')
+      })
+      .catch(() => {
+        if (active) setLoadError('Không thể tải dữ liệu kho hàng')
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
   const formatVND = (n: number) => `${n.toLocaleString('vi-VN')}đ`
 
   // Summary stats
-  const lowStockItems  = MOCK_PRODUCTS.filter(p => getStockStatus(p) === 'LOW')
-  const slowMoving     = MOCK_PRODUCTS.filter(p => (p.daysInStock ?? 0) > 90)
-  const totalValue     = MOCK_PRODUCTS.reduce((acc, p) => acc + p.costPrice * p.quantity, 0)
+  const lowStockItems  = products.filter(p => getStockStatus(p) === 'LOW')
+  const slowMoving     = products.filter(p => (p.daysInStock ?? 0) > 90)
+  const totalValue     = products.reduce((acc, p) => acc + p.costPrice * p.quantity, 0)
+  const totalSkuCount  = products.reduce((acc, p) => acc + p.skus.length, 0)
 
   const formatValue = (n: number) => {
     if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(2)}B`
@@ -128,11 +96,11 @@ export default function WarehouseScreen() {
   }
 
   // Unique categories
-  const categories = ['ALL', ...Array.from(new Set(MOCK_PRODUCTS.map(p => p.category)))]
+  const categories = ['ALL', ...Array.from(new Set(products.map(p => p.category)))]
 
   // Filtered + sorted
   const displayed = useMemo(() => {
-    let list = [...MOCK_PRODUCTS]
+    let list = [...products]
 
     if (search.trim()) {
       const q = search.toLowerCase()
@@ -153,7 +121,7 @@ export default function WarehouseScreen() {
     // 'updated' — giữ thứ tự gốc
 
     return list
-  }, [search, categoryFilter, statusFilter, sortMode])
+  }, [products, search, categoryFilter, statusFilter, sortMode])
 
   return (
     <div className="wh-page">
@@ -203,10 +171,10 @@ export default function WarehouseScreen() {
         <div className="wh-stat-card">
           <div className="wh-stat-label blue">Tổng phẩm loại hoạt động</div>
           <div className="wh-stat-number-row">
-            <span className="wh-stat-number blue">{(1420).toLocaleString('vi-VN')}</span>
+            <span className="wh-stat-number blue">{totalSkuCount.toLocaleString('vi-VN')}</span>
             <span className="wh-stat-unit">SKU</span>
           </div>
-          <div className="wh-stat-desc up">↑ +12 mã mới tuần này</div>
+          <div className="wh-stat-desc">Đồng bộ theo danh mục sản phẩm hiện tại</div>
           <div className="wh-stat-icon blue"><DatabaseOutlined /></div>
         </div>
 
@@ -299,7 +267,19 @@ export default function WarehouseScreen() {
             </tr>
           </thead>
           <tbody>
-            {displayed.length === 0 ? (
+            {loading ? (
+              <tr>
+                <td colSpan={7} style={{ textAlign: 'center', padding: 40, color: '#9ca3af' }}>
+                  Đang tải dữ liệu kho hàng...
+                </td>
+              </tr>
+            ) : loadError ? (
+              <tr>
+                <td colSpan={7} style={{ textAlign: 'center', padding: 40, color: '#dc2626' }}>
+                  {loadError}
+                </td>
+              </tr>
+            ) : displayed.length === 0 ? (
               <tr>
                 <td colSpan={7} style={{ textAlign: 'center', padding: 40, color: '#9ca3af' }}>
                   Không tìm thấy sản phẩm nào
@@ -389,7 +369,7 @@ export default function WarehouseScreen() {
         {/* Pagination */}
         <div className="wh-pagination-bar">
           <div>
-            Hiển thị 1–{displayed.length} trong số 1.420 SKU hàng hóa
+            Hiển thị {displayed.length === 0 ? 0 : 1}–{displayed.length} trong số {totalSkuCount.toLocaleString('vi-VN')} SKU hàng hóa
           </div>
           <div className="wh-pagination-controls">
             <button className="wh-page-btn" disabled type="button">‹</button>

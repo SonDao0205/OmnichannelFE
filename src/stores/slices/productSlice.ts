@@ -1,5 +1,5 @@
 import { createAsyncThunk, createSlice, type PayloadAction } from '@reduxjs/toolkit'
-import { productApi } from '../../apis/productApi'
+import { productApi, productErrorMessage } from '../../apis/productApi'
 import type { Product, ProductFilter } from '../../types/product'
 
 interface ProductState {
@@ -40,22 +40,34 @@ export const fetchProductsThunk = createAsyncThunk(
 
 export const createProductThunk = createAsyncThunk(
   'products/create',
-  async (productData: Partial<Product>) => {
-    return await productApi.createProduct(productData)
+  async (productData: Partial<Product>, { rejectWithValue }) => {
+    try {
+      return await productApi.createProduct(productData)
+    } catch (error) {
+      return rejectWithValue(productErrorMessage(error))
+    }
   }
 )
 
 export const updateProductThunk = createAsyncThunk(
   'products/update',
-  async ({ id, data }: { id: string; data: Partial<Product> }) => {
-    return await productApi.updateProduct(id, data)
+  async ({ id, data }: { id: string; data: Partial<Product> }, { rejectWithValue }) => {
+    try {
+      return await productApi.updateProduct(id, data)
+    } catch (error) {
+      return rejectWithValue(productErrorMessage(error))
+    }
   }
 )
 
 export const deleteProductThunk = createAsyncThunk(
   'products/delete',
-  async (id: string) => {
-    return await productApi.deleteProduct(id)
+  async (id: string, { rejectWithValue }) => {
+    try {
+      return await productApi.deleteProduct(id)
+    } catch (error) {
+      return rejectWithValue(productErrorMessage(error))
+    }
   }
 )
 
@@ -66,7 +78,16 @@ export const adjustStockThunk = createAsyncThunk(
   }
 )
 
-export const syncMarketplacesThunk = createAsyncThunk('products/sync', async () => true)
+export const syncMarketplacesThunk = createAsyncThunk(
+  'products/sync',
+  async (_, { rejectWithValue }) => {
+    try {
+      return await productApi.syncMarketplaces()
+    } catch (error) {
+      return rejectWithValue(productErrorMessage(error))
+    }
+  },
+)
 
 export const productSlice = createSlice({
   name: 'products',
@@ -132,6 +153,17 @@ export const productSlice = createSlice({
         if (index !== -1) {
           state.items[index] = { ...state.items[index], ...action.payload }
         }
+      })
+      .addCase(syncMarketplacesThunk.pending, (state) => {
+        state.loading = true
+        state.error = null
+      })
+      .addCase(syncMarketplacesThunk.fulfilled, (state) => {
+        state.loading = false
+      })
+      .addCase(syncMarketplacesThunk.rejected, (state, action) => {
+        state.loading = false
+        state.error = action.error.message || 'Không thể đồng bộ sản phẩm'
       })
   },
 })

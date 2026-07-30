@@ -103,9 +103,15 @@ export default function OrderScreen() {
     return true
   })
 
-  const handleApprove = (order: Order) => {
-    dispatch(updateOrderStatusThunk({ orderId: order.id, status: 'PACKED' }))
-    message.success(`Đã duyệt đơn hàng ${order.orderCode}!`)
+  const handleApprove = async (order: Order) => {
+    try {
+      await dispatch(
+        updateOrderStatusThunk({ orderId: order.id, status: 'PACKED' }),
+      ).unwrap()
+      message.success(`Đã duyệt đơn hàng ${order.orderCode}!`)
+    } catch {
+      message.error('Không thể cập nhật trạng thái đơn hàng trên sàn.')
+    }
   }
 
   return (
