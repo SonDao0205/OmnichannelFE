@@ -11,4 +11,5 @@ export const ROUTES = {
   promotions: '/promotions',
   chat: '/chat',
   analytics: '/analytics',
+  staff: '/staff',
 } as const

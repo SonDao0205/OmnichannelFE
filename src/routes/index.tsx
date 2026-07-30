@@ -2,6 +2,7 @@ import { Navigate, createBrowserRouter } from 'react-router-dom'
 import AppLayout from '../components/layouts/AppLayout'
 import ProtectedRoute from '../components/auth/ProtectedRoute'
 import PasswordChangeRoute from '../components/auth/PasswordChangeRoute'
+import AdminRoute from '../components/auth/AdminRoute'
 import AnalystScreen from '../pages/analyst/AnalystScreen'
 import LoginScreen from '../pages/auth/LoginScreen'
 import FirstLoginPasswordScreen from '../pages/auth/FirstLoginPasswordScreen'
@@ -14,6 +15,7 @@ import ProductScreen from '../pages/products/ProductScreen'
 import WarehouseScreen from '../pages/warehouse/WarehouseScreen'
 import ShippingScreen from '../pages/shipping/ShippingScreen'
 import PromotionsScreen from '../pages/promotions/PromotionsScreen'
+import StaffManagementScreen from '../pages/staff/StaffManagementScreen'
 import { ROUTES } from './paths'
 
 export const router = createBrowserRouter([
@@ -80,6 +82,14 @@ export const router = createBrowserRouter([
       {
         path: ROUTES.analytics,
         element: <AnalystScreen />,
+      },
+      {
+        path: ROUTES.staff,
+        element: (
+          <AdminRoute>
+            <StaffManagementScreen />
+          </AdminRoute>
+        ),
       },
     ],
   },
