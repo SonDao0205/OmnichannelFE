@@ -69,7 +69,7 @@ export default function OrderScreen() {
 
   useEffect(() => {
     dispatch(fetchOrdersThunk())
-  }, [dispatch])
+  }, [dispatch, filter.statusTab, filter.search, filter.page])
 
   const formatVND = (num: number) => `${num.toLocaleString('vi-VN')}đ`
 
