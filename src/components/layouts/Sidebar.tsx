@@ -11,6 +11,7 @@ import {
   ShoppingCartOutlined,
   TeamOutlined,
   TruckOutlined,
+  UserOutlined,
 } from '@ant-design/icons'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
@@ -84,6 +85,11 @@ const navigationItems: NavigationItem[] = [
     icon: <TeamOutlined />,
   },
   {
+    label: 'Nhân viên CSKH',
+    to: ROUTES.staff,
+    icon: <UserOutlined />,
+  },
+  {
     label: 'Khuyến mãi',
     to: ROUTES.promotions,
     icon: <GiftOutlined />,
@@ -100,6 +106,20 @@ export default function Sidebar() {
   const { session, logout } = useAuth()
   const [showDropdown, setShowDropdown] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+
+  const isShopAdmin =
+    session?.roles.includes('TENANT_MANAGER') ||
+    session?.roles.some((role) =>
+      ['SHOPADMIN', 'ROLE_SHOP_ADMIN', 'ADMINSHOP'].includes(role.toUpperCase()) ||
+      role.toUpperCase().includes('ADMIN')
+    )
+
+  const visibleItems = navigationItems.filter((item) => {
+    if (item.to === ROUTES.staff) {
+      return !!isShopAdmin
+    }
+    return true
+  })
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -153,7 +173,7 @@ export default function Sidebar() {
 
       {/* Navigation */}
       <nav className="app-navigation" aria-label="Điều hướng chính">
-        {navigationItems.map((item) => (
+        {visibleItems.map((item) => (
           <NavLink
             className={({ isActive }) =>
               isActive ? 'app-nav-link is-active' : 'app-nav-link'
