@@ -3,10 +3,6 @@ import axios from 'axios'
 export const CHAT_SOCKET_URL =
   import.meta.env.VITE_CHAT_SOCKET_URL ?? 'http://localhost:8082'
 
-export const DEFAULT_TENANT_ID =
-  import.meta.env.VITE_CHAT_TENANT_ID ??
-  '20000000-0000-0000-0000-000000000001'
-
 const chatHttp = axios.create({
   baseURL: import.meta.env.VITE_CHAT_API_URL ?? 'http://localhost:8082/api/v1',
   withCredentials: true,
@@ -95,12 +91,15 @@ export type ChatOrderHistory = {
   orders: ChatOrderHistoryItem[]
 }
 
-export async function fetchChatConversations(channel: ChatChannelFilter) {
+export async function fetchChatConversations(
+  tenantId: string,
+  channel: ChatChannelFilter,
+) {
   const response = await chatHttp.get<ApiResponse<ChatConversation[]>>(
     '/conversations',
     {
       params: {
-        tenantId: DEFAULT_TENANT_ID,
+        tenantId,
         channel,
       },
     },
@@ -109,12 +108,15 @@ export async function fetchChatConversations(channel: ChatChannelFilter) {
   return response.data.data
 }
 
-export async function fetchChatConversationDetail(conversationId: string) {
+export async function fetchChatConversationDetail(
+  tenantId: string,
+  conversationId: string,
+) {
   const response = await chatHttp.get<ApiResponse<ChatConversationDetail>>(
     `/conversations/${conversationId}`,
     {
       params: {
-        tenantId: DEFAULT_TENANT_ID,
+        tenantId,
       },
     },
   )
@@ -122,12 +124,12 @@ export async function fetchChatConversationDetail(conversationId: string) {
   return response.data.data
 }
 
-export async function fetchChatMessages(conversationId: string) {
+export async function fetchChatMessages(tenantId: string, conversationId: string) {
   const response = await chatHttp.get<ApiResponse<ChatMessage[]>>(
     `/conversations/${conversationId}/messages`,
     {
       params: {
-        tenantId: DEFAULT_TENANT_ID,
+        tenantId,
       },
     },
   )
@@ -135,12 +137,15 @@ export async function fetchChatMessages(conversationId: string) {
   return response.data.data
 }
 
-export async function fetchChatOrderHistory(conversationId: string) {
+export async function fetchChatOrderHistory(
+  tenantId: string,
+  conversationId: string,
+) {
   const response = await chatHttp.get<ApiResponse<ChatOrderHistory>>(
     `/conversations/${conversationId}/orders`,
     {
       params: {
-        tenantId: DEFAULT_TENANT_ID,
+        tenantId,
       },
     },
   )
@@ -148,22 +153,29 @@ export async function fetchChatOrderHistory(conversationId: string) {
   return response.data.data
 }
 
-export async function markChatConversationRead(conversationId: string) {
+export async function markChatConversationRead(
+  tenantId: string,
+  conversationId: string,
+) {
   const response = await chatHttp.patch<ApiResponse<ChatConversationDetail>>(
     `/conversations/${conversationId}/read`,
     {
-      tenantId: DEFAULT_TENANT_ID,
+      tenantId,
     },
   )
 
   return response.data.data
 }
 
-export async function sendChatMessage(conversationId: string, text: string) {
+export async function sendChatMessage(
+  tenantId: string,
+  conversationId: string,
+  text: string,
+) {
   const response = await chatHttp.post<ApiResponse<ChatMessage>>(
     `/conversations/${conversationId}/messages`,
     {
-      tenantId: DEFAULT_TENANT_ID,
+      tenantId,
       text,
     },
   )
