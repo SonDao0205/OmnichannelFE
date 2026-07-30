@@ -99,3 +99,22 @@ export function authErrorMessage(error: unknown): string {
   }
   return 'Đã có lỗi xảy ra. Vui lòng thử lại.'
 }
+
+export function authFieldErrors(
+  error: unknown,
+): Partial<Record<'email' | 'password', string>> {
+  if (!(error instanceof AxiosError)) {
+    return {}
+  }
+
+  const problem = error.response?.data as ApiProblem | undefined
+  const fieldErrors = problem?.fieldErrors
+  if (!fieldErrors) {
+    return {}
+  }
+
+  return {
+    ...(fieldErrors.email ? { email: fieldErrors.email } : {}),
+    ...(fieldErrors.password ? { password: fieldErrors.password } : {}),
+  }
+}
