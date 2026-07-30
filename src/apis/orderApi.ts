@@ -1,5 +1,84 @@
-import { axiosClient } from './axiosClient'
-import type { Order, OrderStatus } from '../types/order'
+import { managementApi } from './authApi'
+import type { Order, OrderItem, OrderStatus } from '../types/order'
+
+// ─── Kiểu trả về từ Backend ──────────────────────────────────────────────────
+
+interface BackendOrderItem {
+  id: string
+  productName: string
+  sku: string
+  variantName: string
+  price: number
+  quantity: number
+}
+
+interface BackendOrder {
+  id: string
+  tenantId: string
+  orderCode: string
+  externalOrderId: string
+  marketplace: string
+  customerName: string
+  customerPhone: string
+  shippingAddressJson: string
+  totalAmount: number
+  discountAmount: number
+  finalAmount: number
+  paymentStatus: string
+  status: string
+  items: BackendOrderItem[]
+  createdAt: string
+  updatedAt?: string
+}
+
+interface SpringPage<T> {
+  content: T[]
+  totalElements: number
+  totalPages: number
+  number: number
+  size: number
+}
+
+// ─── Map Backend → Frontend ──────────────────────────────────────────────────
+
+function mapItem(i: BackendOrderItem): OrderItem {
+  return {
+    id: i.id,
+    productName: i.productName,
+    sku: i.sku || '',
+    quantity: i.quantity,
+    price: i.price,
+    variantName: i.variantName,
+  }
+}
+
+function parseAddress(json: string | undefined) {
+  if (!json) return { recipientName: '', phoneNumber: '', fullAddress: '', city: '' }
+  try { return JSON.parse(json) } catch { return { recipientName: '', phoneNumber: '', fullAddress: json, city: '' } }
+}
+
+function mapOrder(o: BackendOrder): Order {
+  return {
+    id: o.id,
+    orderCode: o.orderCode,
+    externalOrderId: o.externalOrderId || '',
+    marketplace: (o.marketplace || 'MANUAL') as Order['marketplace'],
+    customerName: o.customerName,
+    customerPhone: o.customerPhone || '',
+    items: (o.items || []).map(mapItem),
+    totalAmount: o.totalAmount,
+    shippingFee: 0,
+    discountAmount: o.discountAmount,
+    finalAmount: o.finalAmount,
+    status: o.status as OrderStatus,
+    paymentStatus: (o.paymentStatus === 'PAID' ? 'PAID' : o.paymentStatus === 'REFUNDED' ? 'REFUNDED' : 'UNPAID') as Order['paymentStatus'],
+    shippingAddress: parseAddress(o.shippingAddressJson),
+    createdAt: o.createdAt,
+    updatedAt: o.updatedAt,
+  }
+}
+
+// ─── Mock data dự phòng ──────────────────────────────────────────────────────
 
 export const INITIAL_ORDERS: Order[] = [
   {
@@ -14,7 +93,6 @@ export const INITIAL_ORDERS: Order[] = [
         id: 'item-1',
         productName: 'Áo khoác denim nam dáng rộng AK-204 Vintage Blue',
         sku: 'AK204-M',
-        imageUrl: 'https://images.unsplash.com/photo-1543076447-215ad9ba6923?q=80&w=600&auto=format&fit=crop',
         quantity: 1,
         price: 489000,
         variantName: 'Size M',
@@ -35,129 +113,96 @@ export const INITIAL_ORDERS: Order[] = [
     trackingNumber: 'SPX_VN_8819231',
     createdAt: '2026-07-28T14:20:00Z',
   },
-  {
-    id: 'ord-1002',
-    orderCode: 'OMNI-20260728-772',
-    externalOrderId: 'LZD_ORD_4412093',
-    marketplace: 'Lazada',
-    customerName: 'Trần Thị Bích',
-    customerPhone: '091****888',
-    items: [
-      {
-        id: 'item-2',
-        productName: 'Quần jeans slim-fit nam chất co giãn xám khói',
-        sku: 'JNS952-30',
-        imageUrl: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?q=80&w=600&auto=format&fit=crop',
-        quantity: 2,
-        price: 359000,
-        variantName: 'Size 30',
-      },
-    ],
-    totalAmount: 718000,
-    shippingFee: 25000,
-    discountAmount: 40000,
-    finalAmount: 703000,
-    status: 'PACKED',
-    paymentStatus: 'PAID',
-    shippingAddress: {
-      recipientName: 'Trần Thị Bích',
-      phoneNumber: '091****888',
-      fullAddress: '234 Đường Nguyễn Trãi, Q.5',
-      city: 'TP. Hồ Chí Minh',
-    },
-    trackingNumber: 'LEX_VN_1029384',
-    createdAt: '2026-07-28T11:00:00Z',
-  },
-  {
-    id: 'ord-1003',
-    orderCode: 'OMNI-20260727-551',
-    externalOrderId: 'SHP_ORD_1102938',
-    marketplace: 'Shopee',
-    customerName: 'Lê Hoàng Nam',
-    customerPhone: '093****999',
-    items: [
-      {
-        id: 'item-3',
-        productName: 'Áo len dệt kim trơn cổ tròn basic có duyên',
-        sku: 'KNT001-S',
-        imageUrl: 'https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?q=80&w=600&auto=format&fit=crop',
-        quantity: 1,
-        price: 249000,
-        variantName: 'Size S',
-      },
-    ],
-    totalAmount: 249000,
-    shippingFee: 20000,
-    discountAmount: 0,
-    finalAmount: 269000,
-    status: 'IN_TRANSIT',
-    paymentStatus: 'PAID',
-    shippingAddress: {
-      recipientName: 'Lê Hoàng Nam',
-      phoneNumber: '093****999',
-      fullAddress: '45/12 Lê Lợi, Q. Hải Châu',
-      city: 'Đà Nẵng',
-    },
-    trackingNumber: 'GHN_DN_5519283',
-    createdAt: '2026-07-27T16:45:00Z',
-  },
-  {
-    id: 'ord-1004',
-    orderCode: 'OMNI-20260726-104',
-    externalOrderId: 'TTS_ORD_7749281',
-    marketplace: 'TikTok Shop',
-    customerName: 'Phạm Minh Tuấn',
-    customerPhone: '090****555',
-    items: [
-      {
-        id: 'item-4',
-        productName: 'Áo khoác denim nam dáng rộng AK-204 Vintage Blue',
-        sku: 'AK204-L',
-        imageUrl: 'https://images.unsplash.com/photo-1543076447-215ad9ba6923?q=80&w=600&auto=format&fit=crop',
-        quantity: 1,
-        price: 489000,
-        variantName: 'Size L',
-      },
-    ],
-    totalAmount: 489000,
-    shippingFee: 30000,
-    discountAmount: 50000,
-    finalAmount: 469000,
-    status: 'DELIVERED',
-    paymentStatus: 'PAID',
-    shippingAddress: {
-      recipientName: 'Phạm Minh Tuấn',
-      phoneNumber: '090****555',
-      fullAddress: '102 Trần Hưng Đạo, P. Ninh Kiều',
-      city: 'Cần Thơ',
-    },
-    trackingNumber: 'JNT_CT_9918234',
-    createdAt: '2026-07-26T08:30:00Z',
-  },
 ]
 
+// ─── Request body để tạo đơn hàng ───────────────────────────────────────────
+
+export interface CreateOrderPayload {
+  customerName: string
+  customerPhone?: string
+  marketplace?: string
+  paymentStatus?: string
+  discountAmount?: number
+  shippingAddressJson?: string
+  items: {
+    productName: string
+    sku?: string
+    variantName?: string
+    price: number
+    quantity: number
+  }[]
+}
+
+// ─── API calls ───────────────────────────────────────────────────────────────
+
 export const orderApi = {
-  fetchOrders: async (): Promise<Order[]> => {
+  /** Lấy danh sách đơn hàng (tìm kiếm + lọc trạng thái) */
+  fetchOrders: async (search = '', status = '', page = 0, size = 50): Promise<Order[]> => {
     try {
-      const res = await axiosClient.get<any>('/orders')
-      return Array.isArray(res) ? res : res?.data || INITIAL_ORDERS
+      const params: Record<string, string | number> = { page, size }
+      if (search) params.search = search
+      if (status && status !== 'ALL') params.status = status
+      const res = await managementApi.get<SpringPage<BackendOrder>>('/api/v1/orders', { params })
+      const data = res.data
+      const list = Array.isArray(data) ? data : (data?.content ?? [])
+      return list.map(mapOrder)
     } catch {
       return INITIAL_ORDERS
     }
   },
 
+  /** Lấy chi tiết một đơn hàng */
+  getOrder: async (id: string): Promise<Order> => {
+    const res = await managementApi.get<BackendOrder>(`/api/v1/orders/${id}`)
+    return mapOrder(res.data)
+  },
+
+  /** Tạo đơn hàng mới (tạo tay) */
+  createOrder: async (payload: CreateOrderPayload): Promise<Order> => {
+    try {
+      const res = await managementApi.post<BackendOrder>('/api/v1/orders', payload)
+      return mapOrder(res.data)
+    } catch {
+      // Fallback tạo local khi backend chưa bật
+      const totalAmount = payload.items.reduce((s, i) => s + i.price * i.quantity, 0)
+      const discount = payload.discountAmount ?? 0
+      return {
+        id: `ord-${Date.now()}`,
+        orderCode: `ORD-${Date.now()}`,
+        externalOrderId: '',
+        marketplace: (payload.marketplace || 'MANUAL') as Order['marketplace'],
+        customerName: payload.customerName,
+        customerPhone: payload.customerPhone || '',
+        items: payload.items.map((i, idx) => ({ id: `item-${idx}`, sku: i.sku ?? '', ...i })),
+        totalAmount,
+        shippingFee: 0,
+        discountAmount: discount,
+        finalAmount: totalAmount - discount,
+        status: 'PENDING',
+        paymentStatus: (payload.paymentStatus === 'PAID' ? 'PAID' : 'UNPAID') as Order['paymentStatus'],
+        shippingAddress: { recipientName: payload.customerName, phoneNumber: payload.customerPhone || '', fullAddress: '', city: '' },
+        createdAt: new Date().toISOString(),
+      }
+    }
+  },
+
+  /** Cập nhật trạng thái đơn hàng - backend dùng PUT /{id}/status */
   updateOrderStatus: async (orderId: string, status: OrderStatus): Promise<Order> => {
     try {
-      const res = await axiosClient.patch<Order>(`/orders/${orderId}/status`, { status })
-      return res as unknown as Order
+      const res = await managementApi.put<BackendOrder>(`/api/v1/orders/${orderId}/status`, { status })
+      return mapOrder(res.data)
     } catch {
-      const targetOrder = INITIAL_ORDERS.find((o) => o.id === orderId)
-      if (targetOrder) {
-        targetOrder.status = status
-        targetOrder.updatedAt = new Date().toISOString()
-        return { ...targetOrder }
-      }
+      const fake = INITIAL_ORDERS.find((o) => o.id === orderId)
+      if (fake) return { ...fake, status, updatedAt: new Date().toISOString() }
       throw new Error('Order not found')
     }
+  },
+
+  /** Xoá mềm đơn hàng */
+  deleteOrder: async (orderId: string): Promise<string> => {
+    try {
+      await managementApi.delete(`/api/v1/orders/${orderId}`)
+    } catch { /* fallback */ }
+    return orderId
   },
 }

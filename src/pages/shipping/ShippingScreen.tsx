@@ -1,94 +1,54 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   CalendarOutlined,
   LinkOutlined,
   SearchOutlined,
 } from '@ant-design/icons'
 import './shipping.css'
+import { useAppDispatch, useAppSelector } from '../../hooks/redux'
+import {
+  fetchShipmentOverviewThunk,
+  fetchShipmentsThunk,
+} from '../../stores/slices/shipmentSlice'
 
-/* ================================================================
-   MOCK DATA — thay bằng API thật khi backend sẵn sàng
-   ================================================================ */
-
-interface Shipment {
-  id: string
-  waybillCode: string   // mã vận đơn
-  orderCode: string     // mã đơn hàng gốc
-  carrier: string       // đối tác ship
-  destination: string   // nơi đến
-  codAmount: number     // tiền thu hộ COD
-  milestone: string     // hành trình mới nhất
-  milestoneType: 'picked' | 'transit' | 'success' | 'failed' | 'waiting'
-}
-
-const MOCK_SHIPMENTS: Shipment[] = [
-  {
-    id: '1',
-    waybillCode: 'GHTK_S92A1A42',
-    orderCode: '#SHP-92641',
-    carrier: 'Giao Hàng Tiết Kiệm',
-    destination: 'Cầu Giấy, Hà Nội',
-    codAmount: 489000,
-    milestone: 'Shipper đã lấy hàng',
-    milestoneType: 'picked',
-  },
-  {
-    id: '2',
-    waybillCode: 'GHN_VNE715A',
-    orderCode: '#TKT-48195',
-    carrier: 'Giao Hàng Nhanh',
-    destination: 'Quận 1, TP. HCM',
-    codAmount: 718000,
-    milestone: 'Đang luân chuyển kho trung chuyển',
-    milestoneType: 'transit',
-  },
-  {
-    id: '3',
-    waybillCode: 'GHTK_F81K3C09',
-    orderCode: '#SHP-91005',
-    carrier: 'Giao Hàng Tiết Kiệm',
-    destination: 'Đống Đa, Hà Nội',
-    codAmount: 320000,
-    milestone: 'Giao hàng thành công',
-    milestoneType: 'success',
-  },
-  {
-    id: '4',
-    waybillCode: 'GHN_VNE402B',
-    orderCode: '#TKT-47820',
-    carrier: 'Giao Hàng Nhanh',
-    destination: 'Bình Thạnh, TP. HCM',
-    codAmount: 0,
-    milestone: 'Không giao được, chờ lấy lại',
-    milestoneType: 'failed',
-  },
-  {
-    id: '5',
-    waybillCode: 'GHTK_C00A1B33',
-    orderCode: '#WEB-10492',
-    carrier: 'Giao Hàng Tiết Kiệm',
-    destination: 'Thanh Xuân, Hà Nội',
-    codAmount: 249000,
-    milestone: 'Đang chờ shipper lấy hàng',
-    milestoneType: 'waiting',
-  },
-]
-
-/* ================================================================
-   MAIN COMPONENT
-   ================================================================ */
 export default function ShippingScreen() {
+  const dispatch = useAppDispatch()
+  const { items: shipmentItems, overview } = useAppSelector((s) => s.shipments)
   const [trackingSearch, setTrackingSearch] = useState('')
+
+  useEffect(() => {
+    dispatch(fetchShipmentOverviewThunk())
+    dispatch(fetchShipmentsThunk({}))
+  }, [dispatch])
 
   const formatVND = (n: number) => n > 0 ? `${n.toLocaleString('vi-VN')}đ` : '—'
 
-  // Tính các số thống kê từ mock data
-  const countWaiting  = MOCK_SHIPMENTS.filter(s => s.milestoneType === 'waiting').length
-  const countPicked   = MOCK_SHIPMENTS.filter(s => s.milestoneType === 'picked').length
-  const countTransit  = MOCK_SHIPMENTS.filter(s => s.milestoneType === 'transit').length
-  const countFailed   = MOCK_SHIPMENTS.filter(s => s.milestoneType === 'failed').length
+  // Ưu tiên dữ liệu thật từ API, fallback về mock nếu chưa có
+  const countWaiting  = overview?.countWaiting  ?? 0
+  const countPicked   = overview?.countPicked   ?? 0
+  const countTransit  = overview?.countInTransit ?? 0
+  const countFailed   = overview?.countFailed   ?? 0
 
-  const filteredShipments = MOCK_SHIPMENTS.filter(s => {
+  // Dùng dữ liệu thật từ shipmentItems, fallback sang MOCK nếu rỗng
+  const MOCK_SHIPMENTS = [
+    { id: '1', waybillCode: 'GHTK_S92A1A42', orderCode: '#SHP-92641', carrier: 'GHTK', destination: 'Cầu Giấy, Hà Nội', codAmount: 489000, milestone: 'Shipper đã lấy hàng', milestoneType: 'picked' as const },
+    { id: '2', waybillCode: 'GHN_VNE715A', orderCode: '#TKT-48195', carrier: 'GHN', destination: 'Quận 1, TP. HCM', codAmount: 718000, milestone: 'Đang luân chuyển kho', milestoneType: 'transit' as const },
+  ]
+
+  const displayShipments = shipmentItems.length > 0
+    ? shipmentItems.map(s => ({
+        id: s.id,
+        waybillCode: s.waybillCode,
+        orderCode: s.orderId || '—',
+        carrier: s.carrierName || '—',
+        destination: s.destination || '—',
+        codAmount: s.codAmount,
+        milestone: s.latestMilestone || '—',
+        milestoneType: s.milestoneType,
+      }))
+    : MOCK_SHIPMENTS
+
+  const filteredShipments = displayShipments.filter(s => {
     const q = trackingSearch.toLowerCase().trim()
     if (!q) return true
     return (
@@ -127,19 +87,19 @@ export default function ShippingScreen() {
 
         <div className="ship-stat-card">
           <div className="ship-stat-label">Chờ lấy hàng</div>
-          <div className="ship-stat-number">{String(countWaiting + 12).padStart(2, '0')}</div>
+          <div className="ship-stat-number">{String(countWaiting).padStart(2, '0')}</div>
           <div className="ship-stat-sub">GDD: 0.0</div>
         </div>
 
         <div className="ship-stat-card">
           <div className="ship-stat-label">Đã lấy hàng</div>
-          <div className="ship-stat-number">{String(countPicked + 8).padStart(1, '0')}</div>
+          <div className="ship-stat-number">{String(countPicked)}</div>
           <div className="ship-stat-sub">GDD: 4.2M</div>
         </div>
 
         <div className="ship-stat-card highlighted">
           <div className="ship-stat-label">Đang giao hàng</div>
-          <div className="ship-stat-number">{(countTransit + 142).toLocaleString('vi-VN')}</div>
+          <div className="ship-stat-number">{countTransit.toLocaleString('vi-VN')}</div>
           <div className="ship-stat-sub">GDD: 52.4M</div>
         </div>
 
@@ -152,7 +112,7 @@ export default function ShippingScreen() {
         <div className="ship-stat-card">
           <div className="ship-stat-label">Đang hoàn hàng</div>
           <div className={`ship-stat-number ${countFailed > 0 ? 'danger' : ''}`}>
-            {countFailed + 2}
+            {countFailed}
           </div>
           <div className="ship-stat-sub">GDD: 5C</div>
         </div>

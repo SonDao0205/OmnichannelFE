@@ -55,9 +55,10 @@ export default function ProductScreen() {
 
   useEffect(() => {
     dispatch(fetchProductsThunk())
-  }, [dispatch])
+  }, [dispatch, filter.tab, filter.search, filter.page])
 
-  // Filter logic
+  // Khi backend bật: filter đã áp dụng phía server, items trả về đã được lọc
+  // Khi backend tắt (mock data): filter client-side vẫn hoạt động
   const filteredItems = items.filter((item) => {
     if (filter.tab === 'ACTIVE' && item.status !== 'ACTIVE') return false
     if (

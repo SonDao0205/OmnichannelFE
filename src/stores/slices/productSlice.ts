@@ -4,6 +4,7 @@ import type { Product, ProductFilter } from '../../types/product'
 
 interface ProductState {
   items: Product[]
+  totalElements: number
   loading: boolean
   error: string | null
   filter: ProductFilter
@@ -13,6 +14,7 @@ interface ProductState {
 
 const initialState: ProductState = {
   items: [],
+  totalElements: 0,
   loading: false,
   error: null,
   filter: {
@@ -26,9 +28,15 @@ const initialState: ProductState = {
   isModalOpen: false,
 }
 
-export const fetchProductsThunk = createAsyncThunk('products/fetch', async () => {
-  return await productApi.fetchProducts()
-})
+export const fetchProductsThunk = createAsyncThunk(
+  'products/fetch',
+  async (_, { getState }: any) => {
+    const state = getState() as { products: ProductState }
+    const { filter } = state.products
+    const status = filter.tab === 'ALL' ? '' : filter.tab
+    return await productApi.fetchProducts(filter.search, status, filter.page - 1, filter.pageSize)
+  }
+)
 
 export const createProductThunk = createAsyncThunk(
   'products/create',
@@ -44,13 +52,21 @@ export const updateProductThunk = createAsyncThunk(
   }
 )
 
-export const deleteProductThunk = createAsyncThunk('products/delete', async (id: string) => {
-  return await productApi.deleteProduct(id)
-})
+export const deleteProductThunk = createAsyncThunk(
+  'products/delete',
+  async (id: string) => {
+    return await productApi.deleteProduct(id)
+  }
+)
 
-export const syncMarketplacesThunk = createAsyncThunk('products/sync', async () => {
-  return await productApi.syncMarketplaces()
-})
+export const adjustStockThunk = createAsyncThunk(
+  'products/adjustStock',
+  async ({ id, delta, note }: { id: string; delta: number; note?: string }) => {
+    return await productApi.adjustStock(id, delta, note)
+  }
+)
+
+export const syncMarketplacesThunk = createAsyncThunk('products/sync', async () => true)
 
 export const productSlice = createSlice({
   name: 'products',
@@ -83,12 +99,13 @@ export const productSlice = createSlice({
     builder
       // Fetch
       .addCase(fetchProductsThunk.pending, (state) => {
-        state.loading = true;
+        state.loading = true
         state.error = null
       })
       .addCase(fetchProductsThunk.fulfilled, (state, action) => {
         state.loading = false
         state.items = action.payload
+        state.totalElements = action.payload.length
       })
       .addCase(fetchProductsThunk.rejected, (state, action) => {
         state.loading = false
@@ -108,6 +125,13 @@ export const productSlice = createSlice({
       // Delete
       .addCase(deleteProductThunk.fulfilled, (state, action) => {
         state.items = state.items.filter((p) => p.id !== action.payload)
+      })
+      // Adjust stock
+      .addCase(adjustStockThunk.fulfilled, (state, action) => {
+        const index = state.items.findIndex((p) => p.id === action.payload.id)
+        if (index !== -1) {
+          state.items[index] = { ...state.items[index], ...action.payload }
+        }
       })
   },
 })
