@@ -128,11 +128,15 @@ export default function StaffManagementScreen() {
   const applyBackendFormErrors = (error: unknown, setErrorState: (errors: any) => void): boolean => {
     if (axios.isAxiosError(error)) {
       const problem = error.response?.data as ApiProblem | undefined
+      const errors: Record<string, string> = {}
       if (problem?.fieldErrors && typeof problem.fieldErrors === 'object') {
-        const errors: Record<string, string> = {}
         for (const [key, value] of Object.entries(problem.fieldErrors)) {
           errors[key] = value as string
         }
+        setErrorState(errors)
+        return true
+      } else if (problem?.detail) {
+        errors.general = problem.detail
         setErrorState(errors)
         return true
       }
@@ -197,7 +201,7 @@ export default function StaffManagementScreen() {
     } catch (error) {
       const applied = applyBackendFormErrors(error, setCreateErrors)
       if (!applied) {
-        toast.error(staffErrorMessage(error))
+        setCreateErrors({ general: staffErrorMessage(error) })
       }
     } finally {
       setLoading(false)
@@ -241,7 +245,7 @@ export default function StaffManagementScreen() {
     } catch (error) {
       const applied = applyBackendFormErrors(error, setEditErrors)
       if (!applied) {
-        toast.error(staffErrorMessage(error))
+        setEditErrors({ general: staffErrorMessage(error) })
       }
     } finally {
       setLoading(false)
@@ -291,7 +295,7 @@ export default function StaffManagementScreen() {
     } catch (error) {
       const applied = applyBackendFormErrors(error, setPasswordErrors)
       if (!applied) {
-        toast.error(staffErrorMessage(error))
+        setPasswordErrors({ general: staffErrorMessage(error) })
       }
     } finally {
       setLoading(false)
@@ -762,6 +766,7 @@ ${createdStaffDetails.phoneNumber ? `- Số điện thoại: ${createdStaffDetai
                     <label>
                       <span>Email đăng nhập *</span>
                       <input
+                        className={createErrors.email ? 'is-invalid' : ''}
                         placeholder="nhanvien@company.com"
                         type="email"
                         value={createValues.email}
@@ -781,6 +786,7 @@ ${createdStaffDetails.phoneNumber ? `- Số điện thoại: ${createdStaffDetai
                     <label>
                       <span>Họ và tên *</span>
                       <input
+                        className={createErrors.displayName ? 'is-invalid' : ''}
                         placeholder="Nguyễn Văn A"
                         type="text"
                         value={createValues.displayName}
@@ -791,6 +797,7 @@ ${createdStaffDetails.phoneNumber ? `- Số điện thoại: ${createdStaffDetai
                     <label style={{ marginTop: '10px' }}>
                       <span>Số điện thoại</span>
                       <input
+                        className={createErrors.phoneNumber ? 'is-invalid' : ''}
                         placeholder="Ví dụ: 0912345678"
                         type="text"
                         value={createValues.phoneNumber}
@@ -801,6 +808,11 @@ ${createdStaffDetails.phoneNumber ? `- Số điện thoại: ${createdStaffDetai
                   </div>
                 </div>
 
+                {createErrors.general && (
+                  <div className="staff-error-banner" role="alert">
+                    {createErrors.general}
+                  </div>
+                )}
                 <footer className="staff-form-actions">
                   <button
                     className="staff-cancel-button"
@@ -872,6 +884,7 @@ ${createdStaffDetails.phoneNumber ? `- Số điện thoại: ${createdStaffDetai
                   <label>
                     <span>Họ và tên *</span>
                     <input
+                      className={editErrors.displayName ? 'is-invalid' : ''}
                       placeholder="Nguyễn Văn A"
                       type="text"
                       value={editValues.displayName}
@@ -882,6 +895,7 @@ ${createdStaffDetails.phoneNumber ? `- Số điện thoại: ${createdStaffDetai
                   <label style={{ marginTop: '10px' }}>
                     <span>Số điện thoại</span>
                     <input
+                      className={editErrors.phoneNumber ? 'is-invalid' : ''}
                       placeholder="Ví dụ: 0912345678"
                       type="text"
                       value={editValues.phoneNumber}
@@ -901,6 +915,7 @@ ${createdStaffDetails.phoneNumber ? `- Số điện thoại: ${createdStaffDetai
                   <label>
                     <span>Trạng thái tài khoản *</span>
                     <select
+                      className={editErrors.status ? 'is-invalid' : ''}
                       value={editValues.status}
                       onChange={(e) => setEditValues({ ...editValues, status: e.target.value as 'ACTIVE' | 'LOCKED' })}
                     >
@@ -912,6 +927,11 @@ ${createdStaffDetails.phoneNumber ? `- Số điện thoại: ${createdStaffDetai
                 </div>
               </div>
 
+              {editErrors.general && (
+                <div className="staff-error-banner" role="alert">
+                  {editErrors.general}
+                </div>
+              )}
               <footer className="staff-form-actions">
                 <button
                   className="staff-cancel-button"
@@ -985,6 +1005,7 @@ ${createdStaffDetails.phoneNumber ? `- Số điện thoại: ${createdStaffDetai
                   <label>
                     <span>Mật khẩu mới *</span>
                     <input
+                      className={passwordErrors.newPassword ? 'is-invalid' : ''}
                       placeholder="Nhập ít nhất 6 ký tự"
                       type="password"
                       value={passwordValues.newPassword}
@@ -995,6 +1016,7 @@ ${createdStaffDetails.phoneNumber ? `- Số điện thoại: ${createdStaffDetai
                   <label style={{ marginTop: '10px' }}>
                     <span>Xác nhận mật khẩu *</span>
                     <input
+                      className={passwordErrors.confirmPassword ? 'is-invalid' : ''}
                       placeholder="Nhập lại mật khẩu mới"
                       type="password"
                       value={passwordValues.confirmPassword}
@@ -1005,6 +1027,11 @@ ${createdStaffDetails.phoneNumber ? `- Số điện thoại: ${createdStaffDetai
                 </div>
               </div>
 
+              {passwordErrors.general && (
+                <div className="staff-error-banner" role="alert">
+                  {passwordErrors.general}
+                </div>
+              )}
               <footer className="staff-form-actions">
                 <button
                   className="staff-cancel-button"
