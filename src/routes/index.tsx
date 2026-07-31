@@ -10,6 +10,7 @@ import ChatScreen from '../pages/chat/ChatScreen'
 import ConnectScreen from '../pages/connect/ConnectScreen'
 import CustomerScreen from '../pages/customer/CustomerScreen'
 import OrderScreen from '../pages/order/OrderScreen'
+import LandingScreen from '../pages/landing/LandingScreen'
 import OverviewScreen from '../pages/overview/OverviewScreen'
 import ProductScreen from '../pages/products/ProductScreen'
 import WarehouseScreen from '../pages/warehouse/WarehouseScreen'
@@ -33,16 +34,15 @@ export const router = createBrowserRouter([
   },
   {
     path: '/',
+    element: <LandingScreen />,
+  },
+  {
     element: (
       <ProtectedRoute>
         <AppLayout />
       </ProtectedRoute>
     ),
     children: [
-      {
-        index: true,
-        element: <Navigate replace to={ROUTES.overview} />,
-      },
       {
         path: ROUTES.overview,
         element: <OverviewScreen />,
