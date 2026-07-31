@@ -5,7 +5,6 @@ import {
   PhoneOutlined,
   SendOutlined,
   SmileOutlined,
-  ThunderboltOutlined,
   VideoCameraOutlined,
 } from '@ant-design/icons'
 import type { FormEvent } from 'react'
@@ -18,6 +17,8 @@ import type {
 import Avatar from './Avatar'
 import ProductPreviewCard from './ProductPreviewCard'
 
+type ResponderMode = 'ai-autopilot' | 'human' | 'ai-recommend'
+
 type ChatWindowProps = {
   conversation: ChatConversation | null
   detail: ChatConversationDetail | null
@@ -25,6 +26,8 @@ type ChatWindowProps = {
   isLoading: boolean
   isSending: boolean
   messages: ChatMessage[]
+  responderMode: ResponderMode
+  onResponderModeChange: (mode: ResponderMode) => void
   onSendMessage: (text: string) => Promise<boolean>
 }
 
@@ -60,9 +63,12 @@ export default function ChatWindow({
   isLoading,
   isSending,
   messages,
+  responderMode,
+  onResponderModeChange,
   onSendMessage,
 }: ChatWindowProps) {
   const [draft, setDraft] = useState('')
+  const [isActionSelectOpen, setIsActionSelectOpen] = useState(false)
   const messagesRef = useRef<HTMLElement | null>(null)
 
   const handleMessageInput = (event: FormEvent<HTMLTextAreaElement>) => {
@@ -176,17 +182,6 @@ export default function ChatWindow({
       </section>
 
       <footer className="chat-composer">
-        <div className="chat-autopilot">
-          <span className="chat-bolt">
-            <ThunderboltOutlined />
-          </span>
-          <div>
-            <strong>AI Autopilot Responder</strong>
-            <span>Sẵn sàng hỗ trợ lời chào, FAQ và phản hồi lặp lại</span>
-          </div>
-          <button className="chat-toggle" type="button" aria-label="Bật tắt AI Autopilot" />
-        </div>
-
         <div className="chat-compose-actions">
           <button type="button" aria-label="Đính kèm">
             <PaperClipOutlined />
@@ -194,7 +189,30 @@ export default function ChatWindow({
           <button type="button" aria-label="Biểu cảm">
             <SmileOutlined />
           </button>
-          <span>Mẫu trả lời nhanh (FB)</span>
+          <div className="chat-action-menu">
+            <button
+              className="chat-action-trigger"
+              onClick={() => setIsActionSelectOpen((isOpen) => !isOpen)}
+              type="button"
+            >
+              {'Th\u00eam t\u00e1c v\u1ee5'}
+            </button>
+            {isActionSelectOpen ? (
+              <label className="chat-action-select-wrap">
+                <span>Responder</span>
+                <select
+                  onChange={(event) => {
+                    onResponderModeChange(event.target.value as ResponderMode)
+                  }}
+                  value={responderMode}
+                >
+                  <option value="ai-autopilot">AI Autopilot Responder</option>
+                  <option value="human">Human Responder</option>
+                  <option value="ai-recommend">AI recommend responder</option>
+                </select>
+              </label>
+            ) : null}
+          </div>
         </div>
 
         <form className="chat-message-input" onSubmit={handleSubmit}>

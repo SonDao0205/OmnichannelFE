@@ -164,6 +164,7 @@
 
 .chat-conversation {
   width: 100%;
+  cursor: pointer;
   display: grid;
   grid-template-columns: 38px minmax(0, 1fr) auto;
   gap: 10px;
@@ -176,6 +177,11 @@
 
 .chat-conversation + .chat-conversation {
   margin-top: 6px;
+}
+
+.chat-conversation:focus-visible {
+  outline: 2px solid rgba(37, 99, 235, 0.3);
+  outline-offset: 2px;
 }
 
 .chat-conversation:hover {
@@ -977,4 +983,103 @@
   .chat-recommendations {
     grid-template-columns: 1fr;
   }
+}
+
+
+.chat-conversation-time-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.chat-conversation-meta .chat-pin-button {
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  color: #98a2b3;
+  font-size: 14px;
+  line-height: 1;
+  box-shadow: none;
+  transition:
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.chat-conversation-meta .chat-pin-button:hover {
+  color: #f59e0b;
+  transform: translateY(-1px);
+}
+
+.chat-conversation-meta .chat-pin-button.is-pinned {
+  background: transparent;
+  color: #f59e0b;
+}
+
+.chat-action-menu {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chat-compose-actions .chat-action-trigger {
+  width: auto;
+  min-width: 0;
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 11px;
+  border: 1px solid var(--chat-line);
+  border-radius: 8px;
+  background: #fff;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.chat-compose-actions .chat-action-trigger:hover {
+  border-color: #c7d7fe;
+  color: var(--chat-blue);
+}
+
+.chat-action-select-wrap {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 9px;
+  border: 1px solid #d8e2f3;
+  border-radius: 8px;
+  background: #f8fbff;
+  box-shadow: 0 10px 24px rgba(16, 24, 40, 0.08);
+}
+
+.chat-compose-actions .chat-action-select-wrap span {
+  min-height: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.chat-action-select-wrap select {
+  min-width: 212px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #1d2939;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.chat-action-select-wrap select:focus-visible {
+  outline: 2px solid rgba(37, 99, 235, 0.22);
+  outline-offset: 2px;
 }
