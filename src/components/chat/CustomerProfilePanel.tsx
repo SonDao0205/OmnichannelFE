@@ -13,6 +13,7 @@ type CustomerProfilePanelProps = {
   conversation: ChatConversation | null
   detail: ChatConversationDetail | null
   orderHistory: ChatOrderHistory | null
+  showAiBehaviorInsights: boolean
 }
 
 function getInitials(name: string) {
@@ -37,6 +38,7 @@ export default function CustomerProfilePanel({
   conversation,
   detail,
   orderHistory,
+  showAiBehaviorInsights,
 }: CustomerProfilePanelProps) {
   const [activeTab, setActiveTab] = useState<'dna' | 'orders'>('dna')
   const customer = detail?.marketplaceCustomer
@@ -113,15 +115,17 @@ export default function CustomerProfilePanel({
               </p>
             </section>
 
-            <section className="chat-profile-section">
-              <h3>AI behavior insights</h3>
-              <div className="chat-insight">
-                AI mode: {detail?.aiMode ?? 'Chưa đồng bộ'}
-              </div>
-              <div className="chat-insight">
-                Hội thoại cập nhật theo realtime từ ChatBE.
-              </div>
-            </section>
+            {showAiBehaviorInsights ? (
+              <section className="chat-profile-section">
+                <h3>AI behavior insights</h3>
+                <div className="chat-insight">
+                  AI mode: {detail?.aiMode ?? 'Ch\u01b0a \u0111\u1ed3ng b\u1ed9'}
+                </div>
+                <div className="chat-insight">
+                  {'H\u1ed9i tho\u1ea1i c\u1eadp nh\u1eadt theo realtime t\u1eeb ChatBE.'}
+                </div>
+              </section>
+            ) : null}
 
             <section className="chat-profile-section chat-profile-section--last">
               <h3>AI smart upsell recommendations</h3>

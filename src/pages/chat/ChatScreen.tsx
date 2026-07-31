@@ -19,6 +19,10 @@ import { useAuth } from '../../contexts/authContext'
 import { useChatRealtime } from '../../hooks/useChatRealtime'
 import './chat.css'
 
+type ResponderMode = 'ai-autopilot' | 'human' | 'ai-recommend'
+
+const PINNED_CONVERSATIONS_STORAGE_KEY = 'omnichannel:pinned-conversations'
+
 function getMessageTime(message: ChatMessage) {
   return new Date(
     message.externalCreatedAt ??
@@ -71,6 +75,45 @@ export default function ChatScreen() {
   const [isThreadLoading, setIsThreadLoading] = useState(false)
   const [isSending, setIsSending] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [responderMode, setResponderMode] =
+    useState<ResponderMode>('human')
+  const [pinnedConversationIds, setPinnedConversationIds] = useState<Set<string>>(
+    () => {
+      try {
+        const storedValue = window.localStorage.getItem(
+          PINNED_CONVERSATIONS_STORAGE_KEY,
+        )
+        const parsedValue = storedValue ? JSON.parse(storedValue) : []
+
+        return Array.isArray(parsedValue)
+          ? new Set(parsedValue.filter((item): item is string => typeof item === 'string'))
+          : new Set<string>()
+      } catch {
+        return new Set<string>()
+      }
+    },
+  )
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      PINNED_CONVERSATIONS_STORAGE_KEY,
+      JSON.stringify([...pinnedConversationIds]),
+    )
+  }, [pinnedConversationIds])
+
+  const handleTogglePinnedConversation = useCallback((conversationId: string) => {
+    setPinnedConversationIds((currentIds) => {
+      const nextIds = new Set(currentIds)
+
+      if (nextIds.has(conversationId)) {
+        nextIds.delete(conversationId)
+      } else {
+        nextIds.add(conversationId)
+      }
+
+      return nextIds
+    })
+  }, [])
 
   const selectedConversation = useMemo(
     () =>
@@ -226,9 +269,11 @@ export default function ChatScreen() {
         channel={channel}
         conversations={conversations}
         isLoading={isInboxLoading}
+        pinnedConversationIds={pinnedConversationIds}
         selectedConversationId={selectedConversationId}
         onChannelChange={setChannel}
         onSelectConversation={setSelectedConversationId}
+        onTogglePinnedConversation={handleTogglePinnedConversation}
       />
       <ChatWindow
         conversation={selectedConversation}
@@ -237,12 +282,15 @@ export default function ChatScreen() {
         isLoading={isThreadLoading}
         isSending={isSending}
         messages={messages}
+        responderMode={responderMode}
+        onResponderModeChange={setResponderMode}
         onSendMessage={handleSendMessage}
       />
       <CustomerProfilePanel
         conversation={selectedConversation}
         detail={conversationDetail}
         orderHistory={orderHistory}
+        showAiBehaviorInsights={responderMode === 'ai-recommend'}
       />
     </section>
   )
