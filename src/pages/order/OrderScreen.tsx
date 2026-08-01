@@ -12,21 +12,27 @@ import {
   setOrderSearch,
   openOrderDetail,
   closeOrderDetail,
+  closeCreateOrder,
+  createOrderThunk,
+  openCreateOrder,
   updateOrderStatusThunk,
 } from '../../stores/slices/orderSlice'
+import type { CreateOrderPayload } from '../../apis/orderApi'
 import type { Order, OrderStatus } from '../../types/order'
 import OrderDetailModal from './OrderDetailModal'
+import CreateOrderModal from './CreateOrderModal'
 import { message } from 'antd'
 import './orders.css'
 
 // ---- Helper: hiển thị nguồn sàn ----
 function SourceBadge({ marketplace }: { marketplace: string }) {
-  let cls = 'website'
-  let label = marketplace
+  let cls: string
+  let label: string
 
   if (marketplace === 'Shopee') { cls = 'shopee'; label = 'SHOPEE MALL' }
   else if (marketplace === 'TikTok Shop') { cls = 'tiktok'; label = 'TIKTOK SHOP' }
   else if (marketplace === 'Lazada') { cls = 'lazada'; label = 'LAZADA MALL' }
+  else if (marketplace === 'MANUAL') { cls = 'website'; label = 'ĐƠN TẠO TAY' }
   else { cls = 'website'; label = 'WEBSITE STORE' }
 
   return <span className={`cell-source-badge ${cls}`}>{label}</span>
@@ -58,11 +64,12 @@ const CARRIER_MAP: Record<string, string> = {
   'TikTok Shop': 'GHN_Express',
   'Shopee': 'GHTK_091442',
   'Lazada': 'LEX_Express',
+  'MANUAL': 'Tự vận chuyển',
 }
 
 export default function OrderScreen() {
   const dispatch = useAppDispatch()
-  const { items, loading, filter, selectedOrder, isDetailOpen } = useAppSelector(
+  const { items, loading, filter, selectedOrder, isDetailOpen, isCreateOpen } = useAppSelector(
     (state) => state.orders
   )
   const [localSearch, setLocalSearch] = useState('')
@@ -70,6 +77,17 @@ export default function OrderScreen() {
   useEffect(() => {
     dispatch(fetchOrdersThunk())
   }, [dispatch, filter.statusTab, filter.search, filter.page])
+
+  useEffect(() => {
+    function openWithShortcut(event: KeyboardEvent) {
+      if (event.key === 'F4') {
+        event.preventDefault()
+        dispatch(openCreateOrder())
+      }
+    }
+    window.addEventListener('keydown', openWithShortcut)
+    return () => window.removeEventListener('keydown', openWithShortcut)
+  }, [dispatch])
 
   const formatVND = (num: number) => `${num.toLocaleString('vi-VN')}đ`
 
@@ -88,6 +106,9 @@ export default function OrderScreen() {
   const countInTransit = items.filter(i => i.status === 'IN_TRANSIT').length
   const countDelivered = items.filter(i => i.status === 'DELIVERED').length
   const countCancelled = items.filter(i => i.status === 'CANCELLED' || i.status === 'RETURNED').length
+  const todayCount = items.filter(
+    order => new Date(order.createdAt).toDateString() === new Date().toDateString(),
+  ).length
 
   // Filter
   const filteredOrders = items.filter((order) => {
@@ -114,6 +135,11 @@ export default function OrderScreen() {
     }
   }
 
+  const handleCreateOrder = async (payload: CreateOrderPayload) => {
+    const created = await dispatch(createOrderThunk(payload)).unwrap()
+    message.success(`Đã tạo đơn ${created.orderCode} thành công!`)
+  }
+
   return (
     <div className="order-page-container">
 
@@ -121,13 +147,13 @@ export default function OrderScreen() {
       <div className="order-header-bar">
         <div className="order-header-left">
           <h1>Quản lý đơn hàng</h1>
-          <span className="order-today-badge">Hôm nay: +45 đơn mới</span>
+          <span className="order-today-badge">Hôm nay: +{todayCount} đơn mới</span>
         </div>
         <div className="order-header-actions">
           <button className="btn-export-report" type="button">
             <ExportOutlined /> Xuất báo cáo
           </button>
-          <button className="btn-create-order" type="button">
+          <button className="btn-create-order" onClick={() => dispatch(openCreateOrder())} type="button">
             <PlusOutlined /> Tạo đơn tay (F4)
           </button>
         </div>
@@ -393,6 +419,11 @@ export default function OrderScreen() {
         open={isDetailOpen}
         order={selectedOrder}
         onClose={() => dispatch(closeOrderDetail())}
+      />
+      <CreateOrderModal
+        onCancel={() => dispatch(closeCreateOrder())}
+        onCreate={handleCreateOrder}
+        open={isCreateOpen}
       />
     </div>
   )

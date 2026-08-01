@@ -1,20 +1,25 @@
 import { useEffect, useState } from 'react'
 import {
   CalendarOutlined,
+  DownloadOutlined,
   LinkOutlined,
   SearchOutlined,
 } from '@ant-design/icons'
+import { message } from 'antd'
 import './shipping.css'
 import { useAppDispatch, useAppSelector } from '../../hooks/redux'
 import {
   fetchShipmentOverviewThunk,
   fetchShipmentsThunk,
 } from '../../stores/slices/shipmentSlice'
+import { shipmentApi } from '../../apis/shipmentApi'
+import { exportShipmentExcel } from '../../utils/excelExport'
 
 export default function ShippingScreen() {
   const dispatch = useAppDispatch()
   const { items: shipmentItems, overview } = useAppSelector((s) => s.shipments)
   const [trackingSearch, setTrackingSearch] = useState('')
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     dispatch(fetchShipmentOverviewThunk())
@@ -54,6 +59,24 @@ export default function ShippingScreen() {
     )
   })
 
+  const exportReport = async () => {
+    setExporting(true)
+    try {
+      const search = trackingSearch.trim()
+      const shipments = await shipmentApi.fetchAllShipments(search)
+      if (shipments.length === 0) {
+        message.warning(search ? 'Không có vận đơn phù hợp để xuất báo cáo.' : 'Chưa có dữ liệu vận chuyển để xuất báo cáo.')
+        return
+      }
+      await exportShipmentExcel(shipments, { search: search || undefined })
+      message.success(`Đã xuất ${shipments.length.toLocaleString('vi-VN')} vận đơn ra file Excel (.xlsx).`)
+    } catch {
+      message.error('Không thể tạo báo cáo vận chuyển. Vui lòng thử lại.')
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <div className="ship-page">
 
@@ -74,9 +97,14 @@ export default function ShippingScreen() {
           </select>
         </div>
 
-        <button className="btn-connect-carrier" type="button">
-          <LinkOutlined /> Kết nối vận chuyển
-        </button>
+        <div className="ship-header-actions">
+          <button className="btn-export-shipment" type="button" onClick={() => void exportReport()} disabled={exporting}>
+            <DownloadOutlined /> {exporting ? 'Đang tạo Excel...' : 'Xuất báo cáo'}
+          </button>
+          <button className="btn-connect-carrier" type="button">
+            <LinkOutlined /> Kết nối vận chuyển
+          </button>
+        </div>
       </div>
 
       {/* ===== 6 STATUS CARDS ===== */}

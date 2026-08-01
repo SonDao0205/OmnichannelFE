@@ -412,9 +412,9 @@
   height: 100%;
   border-radius: 2px;
 }
-.wh-qty-bar-fill.low      { background: #ef4444; width: 8%; }
-.wh-qty-bar-fill.normal   { background: #10b981; width: 55%; }
-.wh-qty-bar-fill.overstock{ background: #f59e0b; width: 90%; }
+.wh-qty-bar-fill.low      { background: #ef4444; }
+.wh-qty-bar-fill.normal   { background: #10b981; }
+.wh-qty-bar-fill.overstock{ background: #f59e0b; }
 
 /* ===== CELL: Warehouse status badge ===== */
 .wh-status-badge {
@@ -497,6 +497,39 @@
   color: #374151;
 }
 
+.wh-action-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wh-status-badge i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  display: inline-block;
+}
+
+.wh-empty-cell {
+  text-align: center;
+  padding: 40px !important;
+  color: #9ca3af;
+}
+
+.wh-empty-cell.error {
+  color: #dc2626;
+}
+
+.wh-empty-cell button {
+  margin-left: 10px;
+  border: 0;
+  background: transparent;
+  color: #2563eb;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 /* ===== PAGINATION ===== */
 .wh-pagination-bar {
   display: flex;
@@ -539,3 +572,183 @@
 }
 .wh-page-btn:hover:not(.active):not(:disabled) { background: #f3f4f6; }
 .wh-page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ===== STOCK OPERATION MODAL ===== */
+.wh-operation-form {
+  display: grid;
+  gap: 9px;
+  padding-top: 6px;
+}
+
+.wh-operation-form label {
+  margin-top: 4px;
+  color: #374151;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.wh-operation-form label span {
+  color: #dc2626;
+}
+
+.wh-field-error {
+  margin-top: -5px;
+  color: #dc2626;
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.wh-modal-error-summary {
+  padding: 9px 11px;
+  border: 1px solid #fecaca;
+  border-radius: 7px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 12.5px;
+}
+
+.wh-current-stock,
+.wh-stock-preview {
+  border-radius: 7px;
+  padding: 9px 11px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 12.5px;
+}
+
+.wh-current-stock strong {
+  color: #111827;
+  font-size: 15px;
+}
+
+.wh-stock-preview {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.wh-stock-preview strong {
+  font-size: 16px;
+}
+
+/* ===== INVENTORY DETAIL MODAL ===== */
+.wh-detail-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.wh-detail-summary > div {
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.wh-detail-summary span,
+.wh-detail-summary strong {
+  display: block;
+}
+
+.wh-detail-summary span {
+  margin-bottom: 5px;
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.wh-detail-summary strong {
+  overflow: hidden;
+  color: #111827;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wh-detail-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.wh-detail-table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.wh-detail-table th,
+.wh-detail-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  text-align: left;
+}
+
+.wh-detail-table th {
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 10.5px;
+  text-transform: uppercase;
+}
+
+.wh-detail-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.wh-detail-actions {
+  display: flex;
+  gap: 5px;
+}
+
+.wh-detail-actions button {
+  padding: 4px 7px;
+  border: 1px solid #dbeafe;
+  border-radius: 5px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.wh-detail-actions button:hover {
+  background: #dbeafe;
+}
+
+.wh-detail-empty {
+  padding: 30px;
+  color: #94a3b8;
+  text-align: center;
+}
+
+@media (max-width: 700px) {
+  .wh-header,
+  .wh-header-left,
+  .wh-header-actions {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .wh-header {
+    gap: 12px;
+  }
+
+  .wh-sort-group {
+    width: 100%;
+    margin-left: 0;
+    overflow-x: auto;
+  }
+
+  .wh-detail-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .wh-pagination-bar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+}

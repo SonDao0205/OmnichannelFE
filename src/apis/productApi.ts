@@ -123,6 +123,29 @@ export const productApi = {
     return list.map(mapProduct)
   },
 
+  async fetchAllProducts(search = '', status = ''): Promise<Product[]> {
+    const products: BackendProduct[] = []
+    let page = 0
+    while (true) {
+      const params: Record<string, string | number> = { page, size: 200 }
+      if (search) params.search = search
+      if (status && status !== 'ALL') params.status = status
+      const response = await managementApi.get<SpringPage<BackendProduct>>(
+        '/api/v1/products',
+        { params },
+      )
+      const data = response.data
+      if (Array.isArray(data)) {
+        products.push(...data)
+        break
+      }
+      products.push(...(data?.content ?? []))
+      page += 1
+      if (page >= Math.max(1, data?.totalPages ?? 1)) break
+    }
+    return products.map(mapProduct)
+  },
+
   async createProduct(product: Partial<Product>): Promise<Product> {
     const headers = await csrfHeader()
     const response = await managementApi.post<BackendProduct>(
@@ -156,11 +179,12 @@ export const productApi = {
     id: string,
     delta: number,
     note = '',
+    variantId?: string,
   ): Promise<Product> {
     const headers = await csrfHeader()
     const response = await managementApi.post<BackendProduct>(
       `/api/v1/products/${id}/adjust-stock`,
-      { delta, note },
+      { delta, note, variantId },
       { headers },
     )
     return mapProduct(response.data)

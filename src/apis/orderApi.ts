@@ -1,4 +1,4 @@
-import { managementApi } from './authApi'
+import { csrfHeader, managementApi } from './authApi'
 import type { Order, OrderItem, OrderStatus } from '../types/order'
 
 interface BackendOrderItem {
@@ -105,7 +105,8 @@ export interface CreateOrderPayload {
 
 export const orderApi = {
   fetchOrders: async (search = '', status = '', page = 0, size = 50): Promise<Order[]> => {
-    await managementApi.post('/api/v1/orders/sync')
+    const headers = await csrfHeader()
+    await managementApi.post('/api/v1/orders/sync', undefined, { headers })
     const params: Record<string, string | number> = { page, size }
     if (search) params.search = search
     if (status && status !== 'ALL') params.status = status
@@ -116,13 +117,23 @@ export const orderApi = {
   },
 
   fetchOrdersForReport: async (): Promise<Order[]> => {
-    const response = await managementApi.get<SpringPage<BackendOrder>>(
-      '/api/v1/orders',
-      { params: { page: 0, size: 500 } },
-    )
-    const data = response.data
-    const list = Array.isArray(data) ? data : (data?.content ?? [])
-    return list.map(mapOrder)
+    const orders: BackendOrder[] = []
+    let page = 0
+    while (true) {
+      const response = await managementApi.get<SpringPage<BackendOrder>>(
+        '/api/v1/orders',
+        { params: { page, size: 200 } },
+      )
+      const data = response.data
+      if (Array.isArray(data)) {
+        orders.push(...data)
+        break
+      }
+      orders.push(...(data?.content ?? []))
+      page += 1
+      if (page >= Math.max(1, data?.totalPages ?? 1)) break
+    }
+    return orders.map(mapOrder)
   },
 
   getOrder: async (id: string): Promise<Order> => {
@@ -131,20 +142,24 @@ export const orderApi = {
   },
 
   createOrder: async (payload: CreateOrderPayload): Promise<Order> => {
-    const response = await managementApi.post<BackendOrder>('/api/v1/orders', payload)
+    const headers = await csrfHeader()
+    const response = await managementApi.post<BackendOrder>('/api/v1/orders', payload, { headers })
     return mapOrder(response.data)
   },
 
   updateOrderStatus: async (orderId: string, status: OrderStatus): Promise<Order> => {
+    const headers = await csrfHeader()
     const response = await managementApi.put<BackendOrder>(
       `/api/v1/orders/${orderId}/status`,
       { status },
+      { headers },
     )
     return mapOrder(response.data)
   },
 
   deleteOrder: async (orderId: string): Promise<string> => {
-    await managementApi.delete(`/api/v1/orders/${orderId}`)
+    const headers = await csrfHeader()
+    await managementApi.delete(`/api/v1/orders/${orderId}`, { headers })
     return orderId
   },
 }

@@ -12,6 +12,8 @@ import { orderApi } from '../../apis/orderApi'
 import { productApi } from '../../apis/productApi'
 import type { Order } from '../../types/order'
 import type { Product } from '../../types/product'
+import { exportSalesExcel } from '../../utils/excelExport'
+import { message } from 'antd'
 import './analyst.css'
 
 type RangePreset = 'month' | '30days' | 'quarter' | 'year'
@@ -267,6 +269,7 @@ export default function AnalystScreen() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [exportOpen, setExportOpen] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const exportRef = useRef<HTMLDivElement>(null)
 
   const loadReport = useCallback(async () => {
@@ -275,7 +278,7 @@ export default function AnalystScreen() {
     try {
       const [orderData, productData] = await Promise.all([
         orderApi.fetchOrdersForReport(),
-        productApi.fetchProducts('', '', 0, 500),
+        productApi.fetchAllProducts(),
       ])
       setOrders(orderData)
       setProducts(productData)
@@ -453,39 +456,27 @@ export default function AnalystScreen() {
     }
   }, [orders, preset, products])
 
-  const exportCsv = () => {
-    const rows = [
-      ['BÁO CÁO DOANH SỐ', report.range.label],
-      [],
-      ['Chỉ số', 'Giá trị'],
-      ['Doanh thu thuần', Math.round(report.revenue)],
-      ['Đơn thành công', report.successful],
-      ['Giá trị đơn trung bình', Math.round(report.aov)],
-      ['Tỷ lệ chuyển đổi', `${report.conversion.toFixed(2)}%`],
-      [],
-      ['Sản phẩm', 'Đã bán', 'Doanh số'],
-      ...report.topProducts.map((product) => [
-        product.name,
-        product.quantity,
-        Math.round(product.revenue),
-      ]),
-    ]
-    const csv = rows
-      .map((row) =>
-        row
-          .map((cell) => `"${String(cell ?? '').replaceAll('"', '""')}"`)
-          .join(','),
-      )
-      .join('\n')
-    const url = URL.createObjectURL(
-      new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }),
-    )
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `bao-cao-doanh-so-${new Date().toISOString().slice(0, 10)}.csv`
-    link.click()
-    URL.revokeObjectURL(url)
-    setExportOpen(false)
+  const exportExcel = async () => {
+    setExporting(true)
+    try {
+      await exportSalesExcel({
+        rangeLabel: report.range.label,
+        revenue: report.revenue,
+        successful: report.successful,
+        aov: report.aov,
+        conversion: report.conversion,
+        orders: report.currentOrders,
+        trend: report.trend,
+        channels: report.channels,
+        topProducts: report.topProducts,
+      })
+      message.success('Đã xuất báo cáo doanh số Excel (.xlsx)')
+      setExportOpen(false)
+    } catch {
+      message.error('Không thể tạo file Excel. Vui lòng thử lại.')
+    } finally {
+      setExporting(false)
+    }
   }
 
   const maxSegment = Math.max(1, ...report.segments.map((segment) => segment.value))
@@ -538,9 +529,9 @@ export default function AnalystScreen() {
             </button>
             {exportOpen ? (
               <div className="report-export-menu">
-                <button onClick={exportCsv} type="button">
+                <button disabled={exporting} onClick={() => void exportExcel()} type="button">
                   <FileExcelOutlined />
-                  Xuất Excel (.csv)
+                  {exporting ? 'Đang tạo Excel...' : 'Xuất Excel (.xlsx)'}
                 </button>
                 <button
                   onClick={() => {

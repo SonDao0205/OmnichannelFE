@@ -1,4 +1,4 @@
-export type OrderMarketplace = 'Shopee' | 'Lazada' | 'TikTok Shop'
+export type OrderMarketplace = 'Shopee' | 'Lazada' | 'TikTok Shop' | 'MANUAL' | 'Website'
 
 export type OrderStatus =
   | 'PENDING'
