@@ -25,6 +25,9 @@ export type ChatConversation = {
   phone: string | null
   status: string
   priority: string
+  aiMode: string
+  aiNeedsHuman: boolean
+  aiIssueReason: string | null
   unreadCount: number
   lastMessage: string | null
   lastMessageAt: string | null

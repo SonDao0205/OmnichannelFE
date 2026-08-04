@@ -37,8 +37,41 @@
   line-height: 1.6;
 }
 
+.connect-header-actions {
+  width: min(350px, 100%);
+  display: grid;
+  gap: 10px;
+}
+
+.connect-sync-all-button {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 14px;
+  color: #fff;
+  border: 0;
+  border-radius: 10px;
+  background: #2d68e8;
+  box-shadow: 0 5px 12px rgb(45 104 232 / 18%);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.connect-sync-all-button:hover:not(:disabled) {
+  background: #255dce;
+}
+
+.connect-sync-all-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .connect-security-note {
-  max-width: 350px;
+  width: 100%;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -406,6 +439,10 @@
 
   .connect-security-note {
     max-width: none;
+  }
+
+  .connect-header-actions {
+    width: 100%;
   }
 
   .connect-grid {

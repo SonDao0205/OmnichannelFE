@@ -3,14 +3,13 @@ import {
   BarChartOutlined,
   CustomerServiceOutlined,
   DownOutlined,
-  GiftOutlined,
   InboxOutlined,
   LinkOutlined,
   LogoutOutlined,
   ProductOutlined,
+  RobotOutlined,
   ShoppingCartOutlined,
   TeamOutlined,
-  TruckOutlined,
   UserOutlined,
 } from '@ant-design/icons'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
@@ -18,6 +17,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import Swal from 'sweetalert2'
 import { useAuth } from '../../contexts/authContext'
 import { ROUTES } from '../../routes/paths'
+import { homeRouteForRoles, isCustomerSupportRole } from '../../routes/access'
 
 // Icon SMARTHUB logo (custom S-mark)
 function SmartHubIcon() {
@@ -75,11 +75,6 @@ const navigationItems: NavigationItem[] = [
     icon: <ShoppingCartOutlined />,
   },
   {
-    label: 'Vận chuyển',
-    to: ROUTES.shipping,
-    icon: <TruckOutlined />,
-  },
-  {
     label: 'Khách hàng CRM',
     to: ROUTES.customers,
     icon: <TeamOutlined />,
@@ -90,9 +85,9 @@ const navigationItems: NavigationItem[] = [
     icon: <UserOutlined />,
   },
   {
-    label: 'Khuyến mãi',
-    to: ROUTES.promotions,
-    icon: <GiftOutlined />,
+    label: 'Ngữ cảnh AI',
+    to: ROUTES.aiContexts,
+    icon: <RobotOutlined />,
   },
   {
     label: 'Báo cáo doanh số',
@@ -103,7 +98,7 @@ const navigationItems: NavigationItem[] = [
 
 export default function Sidebar() {
   const navigate = useNavigate()
-  const { session, logout } = useAuth()
+  const { session, logout, hasPermission } = useAuth()
   const [showDropdown, setShowDropdown] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
@@ -113,10 +108,18 @@ export default function Sidebar() {
       ['SHOPADMIN', 'ROLE_SHOP_ADMIN', 'ADMINSHOP'].includes(role.toUpperCase()) ||
       role.toUpperCase().includes('ADMIN')
     )
+  const isCustomerSupport = isCustomerSupportRole(session?.roles ?? [])
 
   const visibleItems = navigationItems.filter((item) => {
+    if (isCustomerSupport) {
+      return ([ROUTES.chat, ROUTES.products, ROUTES.orders, ROUTES.customers] as string[])
+        .includes(item.to)
+    }
     if (item.to === ROUTES.staff) {
       return !!isShopAdmin
+    }
+    if (item.to === ROUTES.aiContexts) {
+      return hasPermission('AI.CONFIGURE')
     }
     return true
   })
@@ -160,7 +163,7 @@ export default function Sidebar() {
     <aside className="app-sidebar">
       {/* Brand */}
       <div className="app-brand">
-        <NavLink className="app-logo" to={ROUTES.overview}>
+        <NavLink className="app-logo" to={homeRouteForRoles(session?.roles ?? [])}>
           <span className="app-logo-mark" aria-hidden="true">
             <SmartHubIcon />
           </span>

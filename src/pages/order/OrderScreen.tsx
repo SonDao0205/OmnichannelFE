@@ -1,10 +1,5 @@
 import { useEffect, useState } from 'react'
-import {
-  ExportOutlined,
-  PlusOutlined,
-  SearchOutlined,
-  SettingOutlined,
-} from '@ant-design/icons'
+import { SearchOutlined, SettingOutlined, SyncOutlined } from '@ant-design/icons'
 import { useAppDispatch, useAppSelector } from '../../hooks/redux'
 import {
   fetchOrdersThunk,
@@ -16,31 +11,37 @@ import {
 } from '../../stores/slices/orderSlice'
 import type { Order, OrderStatus } from '../../types/order'
 import OrderDetailModal from './OrderDetailModal'
-import { message } from 'antd'
+import { Alert, Button, message } from 'antd'
+import { marketplaceApi } from '../../apis/marketplaceApi'
+import { apiErrorMessage } from '../../apis/authApi'
+import { useAuth } from '../../contexts/authContext'
 import './orders.css'
 
 // ---- Helper: hiển thị nguồn sàn ----
 function SourceBadge({ marketplace }: { marketplace: string }) {
-  let cls = 'website'
-  let label = marketplace
+  const sources: Record<string, { cls: string; label: string }> = {
+    Shopee: { cls: 'shopee', label: 'SHOPEE MALL' },
+    'TikTok Shop': { cls: 'tiktok', label: 'TIKTOK SHOP' },
+    Lazada: { cls: 'lazada', label: 'LAZADA MALL' },
+  }
+  const source = sources[marketplace] ?? { cls: 'website', label: 'WEBSITE STORE' }
 
-  if (marketplace === 'Shopee') { cls = 'shopee'; label = 'SHOPEE MALL' }
-  else if (marketplace === 'TikTok Shop') { cls = 'tiktok'; label = 'TIKTOK SHOP' }
-  else if (marketplace === 'Lazada') { cls = 'lazada'; label = 'LAZADA MALL' }
-  else { cls = 'website'; label = 'WEBSITE STORE' }
-
-  return <span className={`cell-source-badge ${cls}`}>{label}</span>
+  return <span className={`cell-source-badge ${source.cls}`}>{source.label}</span>
 }
 
 // ---- Helper: trạng thái badge ----
 function StatusBadge({ status }: { status: OrderStatus }) {
   const map: Record<OrderStatus, { cls: string; label: string }> = {
-    PENDING: { cls: 'pending', label: 'CHỜ XÁC NHẬN' },
-    PACKED: { cls: 'packed', label: 'ĐANG ĐÓNG GÓI' },
+    CREATED: { cls: 'pending', label: 'MỚI TẠO' },
+    CONFIRMED: { cls: 'packed', label: 'ĐÃ XÁC NHẬN' },
+    READY_TO_SHIP: { cls: 'packed', label: 'SẴN SÀNG BÀN GIAO' },
+    SHIPPED: { cls: 'in_transit', label: 'ĐÃ BÀN GIAO' },
     IN_TRANSIT: { cls: 'in_transit', label: 'ĐANG GIAO HÀNG' },
     DELIVERED: { cls: 'delivered', label: 'ĐÃ HOÀN THÀNH' },
     CANCELLED: { cls: 'cancelled', label: 'ĐÃ HỦY ĐƠN' },
+    RETURN_REQUESTED: { cls: 'returned', label: 'YÊU CẦU HOÀN' },
     RETURNED: { cls: 'returned', label: 'ĐÃ HOÀN HÀNG' },
+    FAILED: { cls: 'cancelled', label: 'GIAO THẤT BẠI' },
   }
   const { cls, label } = map[status] ?? { cls: 'pending', label: status }
   return <span className={`order-status-badge ${cls}`}>{label}</span>
@@ -53,23 +54,31 @@ function PaymentTag({ paymentStatus }: { paymentStatus: string }) {
   return <span className="cell-payment-tag cod">COD / Thu hộ</span>
 }
 
-// ---- Helper: carrier name giả lập ----
-const CARRIER_MAP: Record<string, string> = {
-  'TikTok Shop': 'GHN_Express',
-  'Shopee': 'GHTK_091442',
-  'Lazada': 'LEX_Express',
-}
-
 export default function OrderScreen() {
   const dispatch = useAppDispatch()
-  const { items, loading, filter, selectedOrder, isDetailOpen } = useAppSelector(
+  const { hasPermission } = useAuth()
+  const { items, loading, error, filter, selectedOrder, isDetailOpen } = useAppSelector(
     (state) => state.orders
   )
   const [localSearch, setLocalSearch] = useState('')
+  const [syncing, setSyncing] = useState(false)
+  const canFulfillOrders = hasPermission('ORDER.FULFILL')
+  const canSyncMarketplace = hasPermission('PRODUCT.UPDATE')
 
   useEffect(() => {
     dispatch(fetchOrdersThunk())
   }, [dispatch, filter.statusTab, filter.search, filter.page])
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      void dispatch(fetchOrdersThunk())
+    }, 5000)
+    return () => window.clearInterval(timer)
+  }, [dispatch])
+
+  useEffect(() => {
+    if (error) message.error(error)
+  }, [error])
 
   const formatVND = (num: number) => `${num.toLocaleString('vi-VN')}đ`
 
@@ -79,15 +88,15 @@ export default function OrderScreen() {
     const isToday = d.toDateString() === now.toDateString()
     const timeStr = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
     if (isToday) return { day: 'Hôm nay', time: timeStr }
-    return { day: 'Hôm qua', time: timeStr }
+    return { day: d.toLocaleDateString('vi-VN'), time: timeStr }
   }
 
   // Count per tab
-  const countPending = items.filter(i => i.status === 'PENDING').length
-  const countPacked = items.filter(i => i.status === 'PACKED').length
+  const countPending = items.filter(i => i.status === 'CREATED').length
+  const countPacked = items.filter(i => i.status === 'CONFIRMED' || i.status === 'READY_TO_SHIP').length
   const countInTransit = items.filter(i => i.status === 'IN_TRANSIT').length
   const countDelivered = items.filter(i => i.status === 'DELIVERED').length
-  const countCancelled = items.filter(i => i.status === 'CANCELLED' || i.status === 'RETURNED').length
+  const countCancelled = items.filter(i => i.status === 'CANCELLED' || i.status === 'RETURNED' || i.status === 'FAILED').length
 
   // Filter
   const filteredOrders = items.filter((order) => {
@@ -103,9 +112,43 @@ export default function OrderScreen() {
     return true
   })
 
-  const handleApprove = (order: Order) => {
-    dispatch(updateOrderStatusThunk({ orderId: order.id, status: 'PACKED' }))
-    message.success(`Đã duyệt đơn hàng ${order.orderCode}!`)
+  const handleApprove = async (order: Order) => {
+    try {
+      await dispatch(updateOrderStatusThunk({ orderId: order.id, status: 'CONFIRMED' })).unwrap()
+      message.success(`Đã xác nhận đơn hàng ${order.orderCode}!`)
+    } catch {
+      // ProblemDetail được hiển thị qua state.error.
+    }
+  }
+
+  const handleSync = async () => {
+    setSyncing(true)
+    try {
+      const result = await marketplaceApi.syncAll()
+      await dispatch(fetchOrdersThunk()).unwrap()
+      const succeeded = result.shopResults.filter(
+        (shop) => shop.status === 'SUCCEEDED',
+      ).length
+      message.success(
+        `Đã đồng bộ ${succeeded} shop: ${result.orders} đơn hàng và ${result.orderItems} sản phẩm trong đơn.`,
+      )
+      if (result.failures > 0) {
+        const failedNames = result.shopResults
+          .filter(
+            (shop) =>
+              shop.status !== 'SUCCEEDED' &&
+              shop.errorCode !== 'ACCOUNT_NOT_CONNECTED',
+          )
+          .map((shop) => shop.shopName)
+        message.warning(
+          `${result.failures} shop chưa đồng bộ được${failedNames.length ? `: ${failedNames.join(', ')}` : ''}. Các shop khác không bị ảnh hưởng.`,
+        )
+      }
+    } catch (error) {
+      message.error(apiErrorMessage(error))
+    } finally {
+      setSyncing(false)
+    }
   }
 
   return (
@@ -115,17 +158,26 @@ export default function OrderScreen() {
       <div className="order-header-bar">
         <div className="order-header-left">
           <h1>Quản lý đơn hàng</h1>
-          <span className="order-today-badge">Hôm nay: +45 đơn mới</span>
         </div>
-        <div className="order-header-actions">
-          <button className="btn-export-report" type="button">
-            <ExportOutlined /> Xuất báo cáo
-          </button>
-          <button className="btn-create-order" type="button">
-            <PlusOutlined /> Tạo đơn tay (F4)
-          </button>
-        </div>
+        {canSyncMarketplace && (
+          <Button
+            icon={<SyncOutlined spin={syncing} />}
+            loading={syncing}
+            onClick={() => void handleSync()}
+          >
+            Đồng bộ từ sàn
+          </Button>
+        )}
       </div>
+
+      {!canFulfillOrders && (
+        <Alert
+          message="Chế độ chỉ xem"
+          description="Tài khoản CSKH có thể xem và tìm kiếm đơn hàng nhưng không thể đồng bộ hoặc cập nhật trạng thái đơn."
+          showIcon
+          type="info"
+        />
+      )}
 
       {/* ===== STATUS TABS ===== */}
       <div className="order-status-tabs">
@@ -141,8 +193,8 @@ export default function OrderScreen() {
 
         <button
           id="order-tab-pending"
-          className={`order-tab-btn ${filter.statusTab === 'PENDING' ? 'active' : ''}`}
-          onClick={() => dispatch(setStatusTab('PENDING'))}
+          className={`order-tab-btn ${filter.statusTab === 'CREATED' ? 'active' : ''}`}
+          onClick={() => dispatch(setStatusTab('CREATED'))}
           type="button"
         >
           Chờ xử lý&nbsp;
@@ -151,11 +203,11 @@ export default function OrderScreen() {
 
         <button
           id="order-tab-packed"
-          className={`order-tab-btn ${filter.statusTab === 'PACKED' ? 'active' : ''}`}
-          onClick={() => dispatch(setStatusTab('PACKED'))}
+          className={`order-tab-btn ${filter.statusTab === 'READY_TO_SHIP' ? 'active' : ''}`}
+          onClick={() => dispatch(setStatusTab('READY_TO_SHIP'))}
           type="button"
         >
-          Đang đóng gói&nbsp;
+          Chờ bàn giao&nbsp;
           <span className="tab-count">{countPacked}</span>
         </button>
 
@@ -208,32 +260,13 @@ export default function OrderScreen() {
           />
         </div>
 
-        <select className="order-filter-select">
-          <option>Mọi nguồn đơn (Omnichannel)</option>
-          <option>Shopee</option>
-          <option>TikTok Shop</option>
-          <option>Lazada</option>
-          <option>Website Store</option>
-        </select>
-
-        <select className="order-filter-select">
-          <option>Đơn vị vận chuyển: Tất cả</option>
-          <option>GHTK</option>
-          <option>GHN</option>
-          <option>LEX Express</option>
-          <option>Viettel Post</option>
-        </select>
-
-        <input type="date" className="order-date-input" placeholder="mm/dd/yyyy" />
-        <span className="order-date-sep">đến</span>
-        <input type="date" className="order-date-input" placeholder="mm/dd/yyyy" />
       </div>
 
       {/* ===== ORDER TABLE ===== */}
       <div className="order-table-container">
         <table className="order-table">
           <colgroup>
-            <col className="col-check" />
+            {canFulfillOrders && <col className="col-check" />}
             <col className="col-code" />
             <col className="col-source" />
             <col className="col-customer" />
@@ -243,7 +276,7 @@ export default function OrderScreen() {
           </colgroup>
           <thead>
             <tr>
-              <th><input type="checkbox" /></th>
+              {canFulfillOrders && <th><input type="checkbox" /></th>}
               <th>MÃ ĐƠN / THỜI GIAN</th>
               <th>NGUỒN SÀN &amp; KÊNH SHIP</th>
               <th>KHÁCH HÀNG &amp; ĐỊA CHỈ</th>
@@ -255,27 +288,26 @@ export default function OrderScreen() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: 40, color: '#9ca3af' }}>
+                <td colSpan={canFulfillOrders ? 7 : 6} style={{ textAlign: 'center', padding: 40, color: '#9ca3af' }}>
                   Đang tải dữ liệu...
                 </td>
               </tr>
             ) : filteredOrders.length === 0 ? (
               <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: 40, color: '#9ca3af' }}>
+                <td colSpan={canFulfillOrders ? 7 : 6} style={{ textAlign: 'center', padding: 40, color: '#9ca3af' }}>
                   Không có đơn hàng nào
                 </td>
               </tr>
             ) : (
               filteredOrders.map((order) => {
                 const { day, time } = formatDate(order.createdAt)
-                const carrier = CARRIER_MAP[order.marketplace] ?? 'Shipr_Express'
                 const firstItem = order.items[0]
                 const extraItems = order.items.length - 1
 
                 return (
                   <tr key={order.id}>
                     {/* Checkbox */}
-                    <td><input type="checkbox" /></td>
+                    {canFulfillOrders && <td><input type="checkbox" /></td>}
 
                     {/* Mã đơn / Thời gian */}
                     <td>
@@ -290,7 +322,7 @@ export default function OrderScreen() {
                       </div>
                       <div className="cell-carrier">
                         <span className="cell-carrier-dot" />
-                        {carrier}
+                        {order.trackingNumber || 'Chưa có vận đơn'}
                       </div>
                     </td>
 
@@ -339,7 +371,7 @@ export default function OrderScreen() {
                     <td>
                       <div className="order-status-cell">
                         <StatusBadge status={order.status} />
-                        {order.status === 'PENDING' ? (
+                        {canFulfillOrders && order.status === 'CREATED' && (
                           <button
                             className="btn-approve"
                             onClick={() => handleApprove(order)}
@@ -347,16 +379,15 @@ export default function OrderScreen() {
                           >
                             Duyệt
                           </button>
-                        ) : (
-                          <button
-                            className="btn-order-action"
-                            onClick={() => dispatch(openOrderDetail(order))}
-                            type="button"
-                            title="Xem chi tiết"
-                          >
-                            <SettingOutlined />
-                          </button>
                         )}
+                        <button
+                          className="btn-order-action"
+                          onClick={() => dispatch(openOrderDetail(order))}
+                          type="button"
+                          title="Xem chi tiết"
+                        >
+                          <SettingOutlined />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -384,6 +415,7 @@ export default function OrderScreen() {
 
       {/* ===== ORDER DETAIL MODAL ===== */}
       <OrderDetailModal
+        canUpdateStatus={canFulfillOrders}
         open={isDetailOpen}
         order={selectedOrder}
         onClose={() => dispatch(closeOrderDetail())}

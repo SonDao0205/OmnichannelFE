@@ -1,15 +1,19 @@
-import { SearchOutlined } from '@ant-design/icons'
+import { SearchOutlined, StarFilled, WarningFilled } from '@ant-design/icons'
 import { useMemo, useState } from 'react'
 import type { ChatChannelFilter, ChatConversation } from '../../apis/chatApi'
 import Avatar from './Avatar'
+
+type InboxStatusFilter = 'attention' | 'read' | 'pinned'
 
 type ConversationInboxProps = {
   channel: ChatChannelFilter
   conversations: ChatConversation[]
   isLoading: boolean
+  pinnedConversationIds: Set<string>
   selectedConversationId: string | null
   onChannelChange: (channel: ChatChannelFilter) => void
   onSelectConversation: (conversationId: string) => void
+  onTogglePinnedConversation: (conversationId: string) => void
 }
 
 const channelOptions: Array<{
@@ -46,31 +50,55 @@ export default function ConversationInbox({
   channel,
   conversations,
   isLoading,
+  pinnedConversationIds,
   selectedConversationId,
   onChannelChange,
   onSelectConversation,
+  onTogglePinnedConversation,
 }: ConversationInboxProps) {
   const [keyword, setKeyword] = useState('')
+  const [statusFilter, setStatusFilter] = useState<InboxStatusFilter>('attention')
 
   const filteredConversations = useMemo(() => {
     const normalizedKeyword = keyword.trim().toLowerCase()
-    if (!normalizedKeyword) return conversations
 
     return conversations.filter((conversation) => {
-      return (
+      const matchesKeyword =
+        !normalizedKeyword ||
         conversation.customerName.toLowerCase().includes(normalizedKeyword) ||
         (conversation.lastMessage ?? '').toLowerCase().includes(normalizedKeyword)
-      )
-    })
-  }, [conversations, keyword])
 
-  const unreadCount = conversations.filter(
-    (conversation) => conversation.unreadCount > 0,
+      if (!matchesKeyword) return false
+      if (statusFilter === 'attention') {
+        return conversation.unreadCount > 0 || conversation.aiNeedsHuman
+      }
+      if (statusFilter === 'read') {
+        return conversation.unreadCount === 0 && !conversation.aiNeedsHuman
+      }
+
+      return pinnedConversationIds.has(conversation.id)
+    })
+  }, [conversations, keyword, pinnedConversationIds, statusFilter])
+
+  const attentionCount = conversations.filter(
+    (conversation) => conversation.unreadCount > 0 || conversation.aiNeedsHuman,
   ).length
-  const openCount = conversations.filter(
-    (conversation) => conversation.status !== 'CLOSED',
+  const readCount = conversations.filter(
+    (conversation) => conversation.unreadCount === 0 && !conversation.aiNeedsHuman,
   ).length
-  const closedCount = conversations.length - openCount
+  const pinnedCount = conversations.filter((conversation) =>
+    pinnedConversationIds.has(conversation.id),
+  ).length
+
+  const inboxTabs: Array<{
+    label: string
+    value: InboxStatusFilter
+    count: number
+  }> = [
+    { label: 'Cần xử lý', value: 'attention', count: attentionCount },
+    { label: '\u0110\u00e3 \u0111\u1ecdc', value: 'read', count: readCount },
+    { label: 'Ghim', value: 'pinned', count: pinnedCount },
+  ]
 
   return (
     <aside className="chat-inbox" aria-label="Danh sách hội thoại">
@@ -102,11 +130,16 @@ export default function ConversationInbox({
       </div>
 
       <div className="chat-tabs">
-        <button className="is-active" type="button">
-          Chưa trả lời {unreadCount}
-        </button>
-        <button type="button">Đang xử lý {openCount}</button>
-        <button type="button">Đã xong {closedCount}</button>
+        {inboxTabs.map((tab) => (
+          <button
+            className={statusFilter === tab.value ? 'is-active' : ''}
+            key={tab.value}
+            onClick={() => setStatusFilter(tab.value)}
+            type="button"
+          >
+            {tab.label} {tab.count}
+          </button>
+        ))}
       </div>
 
       <div className="chat-conversation-list">
@@ -118,15 +151,26 @@ export default function ConversationInbox({
 
         {filteredConversations.map((conversation, index) => {
           const isActive = conversation.id === selectedConversationId
+          const isPinned = pinnedConversationIds.has(conversation.id)
           const channelTagClass =
             conversation.channel === 'LAZADA' ? 'chat-tag chat-tag--blue' : 'chat-tag'
 
           return (
-            <button
-              className={`chat-conversation ${isActive ? 'is-active' : ''}`}
+            <div
+              className={`chat-conversation ${isActive ? 'is-active' : ''} ${
+                conversation.aiNeedsHuman ? 'is-ai-alert' : ''
+              }`}
               key={conversation.id}
               onClick={() => onSelectConversation(conversation.id)}
-              type="button"
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  onSelectConversation(conversation.id)
+                }
+              }}
+              role="button"
+              tabIndex={0}
+              title={conversation.aiIssueReason ?? undefined}
             >
               <Avatar
                 avatarUrl={conversation.avatarUrl}
@@ -141,15 +185,34 @@ export default function ConversationInbox({
                   {conversation.priority !== 'NORMAL' ? (
                     <span className="chat-tag">{conversation.priority}</span>
                   ) : null}
+                  {conversation.aiNeedsHuman ? (
+                    <span className="chat-tag chat-tag--ai-alert">
+                      <WarningFilled /> AI cần xử lý
+                    </span>
+                  ) : null}
                 </div>
               </div>
               <div className="chat-conversation-meta">
-                <span>{formatRelativeTime(conversation.lastMessageAt)}</span>
+                <div className="chat-conversation-time-row">
+                  <button
+                    aria-label={isPinned ? 'Bo ghim hoi thoai' : 'Ghim hoi thoai'}
+                    className={`chat-pin-button ${isPinned ? 'is-pinned' : ''}`}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      onTogglePinnedConversation(conversation.id)
+                    }}
+                    title={isPinned ? 'Bo ghim hoi thoai' : 'Ghim hoi thoai'}
+                    type="button"
+                  >
+                    <StarFilled />
+                  </button>
+                  <span>{formatRelativeTime(conversation.lastMessageAt)}</span>
+                </div>
                 {conversation.unreadCount > 0 ? (
                   <span className="chat-unread">{conversation.unreadCount}</span>
                 ) : null}
               </div>
-            </button>
+            </div>
           )
         })}
       </div>

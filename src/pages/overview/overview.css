@@ -1,0 +1,212 @@
+.dashboard-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  color: #1e293b;
+}
+
+.dashboard-overview .dashboard-welcome {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.dashboard-overview .welcome-info h1 {
+  margin: 0 0 5px;
+  color: #0f172a;
+  font-size: 24px;
+}
+
+.dashboard-overview .welcome-info p {
+  margin: 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.dashboard-overview .dashboard-date {
+  flex: 0 0 auto;
+  padding: 9px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dashboard-overview .dashboard-state {
+  min-height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  color: #64748b;
+}
+
+.dashboard-overview .dashboard-error {
+  color: #b91c1c;
+}
+
+.dashboard-overview .dashboard-state button {
+  border: 0;
+  border-radius: 7px;
+  padding: 8px 12px;
+  background: #4f46e5;
+  color: #fff;
+  cursor: pointer;
+}
+
+.dashboard-overview .kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.dashboard-overview .kpi-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.dashboard-overview .kpi-icon-wrapper {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  flex: 0 0 46px;
+  place-items: center;
+  border-radius: 11px;
+  font-size: 21px;
+}
+
+.dashboard-overview .kpi-revenue .kpi-icon-wrapper { background: #ede9fe; color: #7c3aed; }
+.dashboard-overview .kpi-orders .kpi-icon-wrapper { background: #dbeafe; color: #2563eb; }
+.dashboard-overview .kpi-customers .kpi-icon-wrapper { background: #fef3c7; color: #d97706; }
+
+.dashboard-overview .kpi-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dashboard-overview .kpi-title {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .3px;
+  text-transform: uppercase;
+}
+
+.dashboard-overview .kpi-value {
+  color: #0f172a;
+  font-size: 22px;
+  font-weight: 750;
+}
+
+.dashboard-overview .kpi-description {
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.dashboard-overview .dashboard-panel {
+  padding: 20px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.dashboard-overview .panel-header {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.dashboard-overview .panel-header h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 16px;
+}
+
+.dashboard-overview .channels-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.dashboard-overview .channel-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.dashboard-overview .channel-logo-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dashboard-overview .channel-logo-wrapper {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  color: #fff;
+  font-weight: 800;
+}
+
+.dashboard-overview .channel-logo-tiktok { background: #111827; }
+.dashboard-overview .channel-logo-lazada { background: #172554; }
+.dashboard-overview .channel-name { color: #0f172a; font-size: 14px; font-weight: 650; }
+.dashboard-overview .channel-card strong { color: #334155; font-size: 14px; }
+
+.dashboard-overview .dashboard-table-wrapper { overflow-x: auto; }
+.dashboard-overview .dashboard-table { width: 100%; border-collapse: collapse; text-align: left; }
+.dashboard-overview .dashboard-table th {
+  padding: 11px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  color: #64748b;
+  font-size: 11px;
+  letter-spacing: .3px;
+  text-transform: uppercase;
+}
+.dashboard-overview .dashboard-table td {
+  padding: 13px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.dashboard-overview .order-code { color: #4f46e5 !important; font-weight: 700; }
+.dashboard-overview .order-total { font-weight: 700; }
+.dashboard-overview .empty-cell { padding: 28px !important; color: #94a3b8 !important; text-align: center; }
+.dashboard-overview .badge-status { display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 650; }
+.dashboard-overview .badge-status.success { background: #dcfce7; color: #15803d; }
+.dashboard-overview .badge-status.warning { background: #fef3c7; color: #b45309; }
+.dashboard-overview .badge-status.info { background: #dbeafe; color: #1d4ed8; }
+.dashboard-overview .badge-status.danger { background: #fee2e2; color: #b91c1c; }
+
+@media (max-width: 900px) {
+  .dashboard-overview .kpi-grid { grid-template-columns: 1fr; }
+  .dashboard-overview .channels-list { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .dashboard-overview .dashboard-welcome { align-items: flex-start; flex-direction: column; }
+  .dashboard-overview .dashboard-date { width: 100%; box-sizing: border-box; }
+}

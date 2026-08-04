@@ -10,6 +10,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { authErrorMessage, authFieldErrors } from '../../apis/authApi'
 import { useAuth } from '../../contexts/authContext'
 import { ROUTES } from '../../routes/paths'
+import { homeRouteForRoles } from '../../routes/access'
 import {
   type LoginField,
   type LoginValidationErrors,
@@ -43,7 +44,7 @@ export default function LoginScreen() {
         to={
           session.mustChangePassword
             ? ROUTES.changePassword
-            : ROUTES.overview
+            : homeRouteForRoles(session.roles)
         }
       />
     )
@@ -69,7 +70,7 @@ export default function LoginScreen() {
         return
       }
       const state = location.state as LoginLocationState | null
-      navigate(state?.from || ROUTES.overview, { replace: true })
+      navigate(state?.from || homeRouteForRoles(authenticatedSession.roles), { replace: true })
     } catch (loginError) {
       const backendFieldErrors = authFieldErrors(loginError)
       setFieldErrors(backendFieldErrors)

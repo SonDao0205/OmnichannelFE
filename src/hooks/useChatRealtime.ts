@@ -7,9 +7,18 @@ type MessageCreatedPayload = {
   message: ChatMessage
 }
 
-type ConversationUpdatedPayload = {
+export type ConversationUpdatedPayload = {
   conversationId: string
-  conversation: unknown
+  conversation?: {
+    aiMode?: string
+    priority?: string
+  }
+  aiMode?: string
+  priority?: string
+  handoff?: {
+    reasonCode?: string
+    reasonText?: string
+  }
 }
 
 type UseChatRealtimeInput = {

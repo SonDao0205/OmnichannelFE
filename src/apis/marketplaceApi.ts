@@ -5,6 +5,52 @@ import type {
   MarketplaceConnection,
 } from '../types/marketplace'
 
+export interface MarketplaceSyncResult {
+  accounts: number
+  products: number
+  variants: number
+  pushedProducts: number
+  pushedVariants: number
+  orders: number
+  orderItems: number
+  archivedProducts: number
+  archivedVariants: number
+  failures: number
+  pullFailures: number
+  pushFailures: number
+  shopResults: MarketplaceShopSyncResult[]
+  completedAt: string
+}
+
+export interface MarketplaceSyncRequest {
+  productIds: string[]
+  marketplaceAccountIds: string[]
+  allProducts: boolean
+}
+
+export interface MarketplaceShopSyncResult {
+  accountId: string
+  marketplace: MarketplaceCode | 'UNKNOWN'
+  externalAccountId: string
+  shopName: string
+  status: 'SUCCEEDED' | 'PARTIAL' | 'FAILED' | 'SKIPPED'
+  pullStatus: 'SUCCEEDED' | 'PARTIAL' | 'FAILED' | 'SKIPPED'
+  pushStatus: 'SUCCEEDED' | 'PARTIAL' | 'FAILED' | 'SKIPPED'
+  products: number
+  variants: number
+  pushedProducts: number
+  pushedVariants: number
+  orders: number
+  orderItems: number
+  archivedProducts: number
+  archivedVariants: number
+  errorCode: string | null
+  errorMessage: string | null
+  pullErrorMessage: string | null
+  pushErrorMessage: string | null
+  completedAt: string
+}
+
 export const marketplaceApi = {
   async list(): Promise<MarketplaceConnection[]> {
     const { data } = await managementApi.get<MarketplaceConnection[]>(
@@ -40,6 +86,26 @@ export const marketplaceApi = {
     const headers = await csrfHeader()
     const { data } = await managementApi.post<MarketplaceConnection>(
       `/api/marketplace-connections/${accountId}/refresh`,
+      undefined,
+      { headers },
+    )
+    return data
+  },
+
+  async syncAll(request?: MarketplaceSyncRequest): Promise<MarketplaceSyncResult> {
+    const headers = await csrfHeader()
+    const { data } = await managementApi.post<MarketplaceSyncResult>(
+      '/api/marketplace-connections/sync',
+      request,
+      { headers },
+    )
+    return data
+  },
+
+  async syncAccount(accountId: string): Promise<MarketplaceSyncResult> {
+    const headers = await csrfHeader()
+    const { data } = await managementApi.post<MarketplaceSyncResult>(
+      `/api/marketplace-connections/${accountId}/sync`,
       undefined,
       { headers },
     )

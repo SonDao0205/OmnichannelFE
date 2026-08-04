@@ -1,22 +1,22 @@
 import {
-  CustomerServiceOutlined,
   MoreOutlined,
   PaperClipOutlined,
-  PhoneOutlined,
   SendOutlined,
   SmileOutlined,
-  ThunderboltOutlined,
-  VideoCameraOutlined,
 } from '@ant-design/icons'
-import type { FormEvent } from 'react'
+import type { FormEvent, KeyboardEvent } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import type {
   ChatConversation,
   ChatConversationDetail,
   ChatMessage,
 } from '../../apis/chatApi'
+import type { AiRun } from '../../apis/aiConversationApi'
+import AiSuggestionPanel from './AiSuggestionPanel'
 import Avatar from './Avatar'
 import ProductPreviewCard from './ProductPreviewCard'
+
+export type ResponderMode = 'ai-autopilot' | 'human' | 'ai-recommend'
 
 type ChatWindowProps = {
   conversation: ChatConversation | null
@@ -25,6 +25,25 @@ type ChatWindowProps = {
   isLoading: boolean
   isSending: boolean
   messages: ChatMessage[]
+  aiRun: AiRun | null
+  aiIssueReason: string | null
+  aiErrorMessage: string | null
+  isAiBusy: boolean
+  canSuggest: boolean
+  canApprove: boolean
+  responderMode: ResponderMode
+  isAutopilotActive: boolean
+  onResponderModeChange: (mode: ResponderMode) => Promise<void>
+  onStartAutopilot: () => Promise<void>
+  onGenerateAiSuggestion: () => Promise<void>
+  onApproveAiRun: (text: string, send: boolean) => Promise<void>
+  onRejectAiRun: (reason: string) => Promise<void>
+  onAiFeedback: (
+    rating: number,
+    feedbackType: 'GOOD' | 'INCORRECT',
+    correctedText?: string,
+    commentText?: string,
+  ) => Promise<void>
   onSendMessage: (text: string) => Promise<boolean>
 }
 
@@ -60,9 +79,24 @@ export default function ChatWindow({
   isLoading,
   isSending,
   messages,
+  aiRun,
+  aiIssueReason,
+  aiErrorMessage,
+  isAiBusy,
+  canSuggest,
+  canApprove,
+  responderMode,
+  isAutopilotActive,
+  onResponderModeChange,
+  onStartAutopilot,
+  onGenerateAiSuggestion,
+  onApproveAiRun,
+  onRejectAiRun,
+  onAiFeedback,
   onSendMessage,
 }: ChatWindowProps) {
   const [draft, setDraft] = useState('')
+  const [isActionSelectOpen, setIsActionSelectOpen] = useState(false)
   const messagesRef = useRef<HTMLElement | null>(null)
 
   const handleMessageInput = (event: FormEvent<HTMLTextAreaElement>) => {
@@ -101,6 +135,18 @@ export default function ChatWindow({
     if (sent) setDraft('')
   }
 
+  const handleComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (
+      event.key !== 'Enter' ||
+      event.shiftKey ||
+      event.nativeEvent.isComposing
+    ) {
+      return
+    }
+    event.preventDefault()
+    event.currentTarget.form?.requestSubmit()
+  }
+
   return (
     <main className="chat-window">
       <header className="chat-header">
@@ -115,15 +161,6 @@ export default function ChatWindow({
         </div>
 
         <div className="chat-tools" aria-label="Công cụ hội thoại">
-          <button type="button" aria-label="Gọi điện">
-            <PhoneOutlined />
-          </button>
-          <button type="button" aria-label="Gọi video">
-            <VideoCameraOutlined />
-          </button>
-          <button type="button" aria-label="Chăm sóc khách hàng">
-            <CustomerServiceOutlined />
-          </button>
           <button type="button" aria-label="Tùy chọn thêm">
             <MoreOutlined />
           </button>
@@ -176,17 +213,26 @@ export default function ChatWindow({
       </section>
 
       <footer className="chat-composer">
-        <div className="chat-autopilot">
-          <span className="chat-bolt">
-            <ThunderboltOutlined />
-          </span>
-          <div>
-            <strong>AI Autopilot Responder</strong>
-            <span>Sẵn sàng hỗ trợ lời chào, FAQ và phản hồi lặp lại</span>
-          </div>
-          <button className="chat-toggle" type="button" aria-label="Bật tắt AI Autopilot" />
-        </div>
-
+        {conversation ? (
+          <AiSuggestionPanel
+            key={aiRun?.id ?? 'no-ai-run'}
+            aiIssueReason={aiIssueReason}
+            canApprove={canApprove}
+            canSuggest={canSuggest}
+            errorMessage={aiErrorMessage}
+            isBusy={isAiBusy}
+            isAutopilotActive={isAutopilotActive}
+            mode={responderMode}
+            onApprove={onApproveAiRun}
+            onFeedback={onAiFeedback}
+            onGenerate={onGenerateAiSuggestion}
+            onPauseAutopilot={() => onResponderModeChange('human')}
+            onStartAutopilot={onStartAutopilot}
+            onReject={onRejectAiRun}
+            onUseSuggestion={setDraft}
+            run={aiRun}
+          />
+        ) : null}
         <div className="chat-compose-actions">
           <button type="button" aria-label="Đính kèm">
             <PaperClipOutlined />
@@ -194,21 +240,55 @@ export default function ChatWindow({
           <button type="button" aria-label="Biểu cảm">
             <SmileOutlined />
           </button>
-          <span>Mẫu trả lời nhanh (FB)</span>
+          <div className="chat-action-menu">
+            <button
+              className="chat-action-trigger"
+              onClick={() => setIsActionSelectOpen((isOpen) => !isOpen)}
+              type="button"
+            >
+              {'Th\u00eam t\u00e1c v\u1ee5'}
+            </button>
+            {isActionSelectOpen ? (
+              <label className="chat-action-select-wrap">
+                <span>Responder</span>
+                <select
+                  onChange={(event) => {
+                    void onResponderModeChange(event.target.value as ResponderMode)
+                  }}
+                  disabled={!conversation || !canSuggest || isAiBusy}
+                  value={responderMode}
+                >
+                  <option value="ai-autopilot">AI Autopilot Responder</option>
+                  <option value="human">Human Responder</option>
+                  <option value="ai-recommend">AI recommend responder</option>
+                </select>
+              </label>
+            ) : null}
+          </div>
         </div>
 
         <form className="chat-message-input" onSubmit={handleSubmit}>
           <textarea
-            disabled={!conversation || isSending}
+            disabled={!conversation || isSending || isAutopilotActive}
             onChange={(event) => setDraft(event.target.value)}
             onInput={handleMessageInput}
-            placeholder={`Nhập phản hồi cho ${customerName}...`}
+            onKeyDown={handleComposerKeyDown}
+            placeholder={
+              isAutopilotActive
+                ? 'Tạm dừng AI Autopilot để nhân viên trả lời'
+                : `Nhập phản hồi cho ${customerName}...`
+            }
             rows={1}
             value={draft}
           />
           <button
             aria-label="Gửi tin nhắn"
-            disabled={!conversation || !draft.trim() || isSending}
+            disabled={
+              !conversation ||
+              !draft.trim() ||
+              isSending ||
+              isAutopilotActive
+            }
             type="submit"
           >
             <SendOutlined />

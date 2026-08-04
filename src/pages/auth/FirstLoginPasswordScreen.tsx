@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom'
 import { authErrorMessage } from '../../apis/authApi'
 import { useAuth } from '../../contexts/authContext'
 import { ROUTES } from '../../routes/paths'
+import { homeRouteForRoles } from '../../routes/access'
 import './login.css'
 
 export default function FirstLoginPasswordScreen() {
@@ -46,12 +47,12 @@ export default function FirstLoginPasswordScreen() {
     }
     setIsSubmitting(true)
     try {
-      await changePassword({
+      const updatedSession = await changePassword({
         currentPassword,
         newPassword,
         confirmPassword,
       })
-      navigate(ROUTES.overview, { replace: true })
+      navigate(homeRouteForRoles(updatedSession.roles), { replace: true })
     } catch (changeError) {
       setError(authErrorMessage(changeError))
     } finally {
