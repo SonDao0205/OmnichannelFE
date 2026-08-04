@@ -1,6 +1,7 @@
 import {
   CheckCircleFilled,
   CloseOutlined,
+  DatabaseOutlined,
   DeleteOutlined,
   EditOutlined,
   LoadingOutlined,
@@ -22,6 +23,7 @@ import type {
   AiContextMood,
   AiShopContext,
   AiShopContextPayload,
+  AiShopKnowledgeStatus,
 } from '../../types/aiContext'
 import type { MarketplaceConnection } from '../../types/marketplace'
 import './ai-context.css'
@@ -86,6 +88,7 @@ export default function AiContextScreen() {
   const [shops, setShops] = useState<MarketplaceConnection[]>([])
   const [selectedShopId, setSelectedShopId] = useState('')
   const [contexts, setContexts] = useState<AiShopContext[]>([])
+  const [knowledgeStatus, setKnowledgeStatus] = useState<AiShopKnowledgeStatus | null>(null)
   const [isLoadingShops, setIsLoadingShops] = useState(true)
   const [isLoadingContexts, setIsLoadingContexts] = useState(false)
   const [workingId, setWorkingId] = useState<string | null>(null)
@@ -102,14 +105,21 @@ export default function AiContextScreen() {
   const loadContexts = useCallback(async (shopId: string) => {
     if (!shopId) {
       setContexts([])
+      setKnowledgeStatus(null)
       return
     }
     setIsLoadingContexts(true)
     try {
-      setContexts(await aiContextApi.list(shopId))
+      const [contextItems, status] = await Promise.all([
+        aiContextApi.list(shopId),
+        aiContextApi.knowledgeStatus(shopId).catch(() => null),
+      ])
+      setContexts(contextItems)
+      setKnowledgeStatus(status)
     } catch (error) {
       toast.error(aiContextErrorMessage(error))
       setContexts([])
+      setKnowledgeStatus(null)
     } finally {
       setIsLoadingContexts(false)
     }
@@ -325,6 +335,33 @@ export default function AiContextScreen() {
           </div>
         ) : null}
       </div>
+
+      {selectedShopId ? (
+        <section className={`ai-knowledge-status is-${(knowledgeStatus?.status || 'empty').toLowerCase()}`}>
+          <div className="ai-knowledge-status-title">
+            <span><DatabaseOutlined /></span>
+            <div>
+              <strong>Kiến thức sản phẩm của AI</strong>
+              <small>
+                {knowledgeStatus
+                  ? `Tự động mỗi 20 phút · Cập nhật: ${formatDate(knowledgeStatus.lastBuiltAt)}`
+                  : 'Hệ thống tự động chuẩn bị dữ liệu mỗi 20 phút'}
+              </small>
+            </div>
+          </div>
+          <div className="ai-knowledge-metrics">
+            <span><strong>{knowledgeStatus?.productCount ?? 0}</strong>Sản phẩm</span>
+            <span><strong>{knowledgeStatus?.variantCount ?? 0}</strong>Biến thể</span>
+            <span><strong>{knowledgeStatus?.missingColorCount ?? 0}</strong>Thiếu màu</span>
+            <span><strong>{knowledgeStatus?.missingSizeCount ?? 0}</strong>Thiếu size</span>
+            <span><strong>{knowledgeStatus?.cacheStatus ?? 'EMPTY'}</strong>Redis</span>
+            <span><strong>{knowledgeStatus?.vectorStatus ?? 'PENDING'}</strong>Qdrant</span>
+          </div>
+          {knowledgeStatus?.lastError ? (
+            <p className="ai-knowledge-error">{knowledgeStatus.lastError}</p>
+          ) : null}
+        </section>
+      ) : null}
 
       {isLoadingShops || isLoadingContexts ? (
         <div className="ai-context-state"><LoadingOutlined spin /> Đang tải ngữ cảnh...</div>

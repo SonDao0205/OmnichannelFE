@@ -40,6 +40,7 @@ export type AiRun = {
   tenant_id: string
   conversation_id: string
   trigger_message_id: string
+  prompt_version?: string
   status: AiRunStatus
   generated_text?: string | null
   confidence?: number | null
@@ -74,7 +75,10 @@ export async function createAiSuggestion(
   const { data } = await managementApi.post<AiRun | AiRunAccepted>(
     `/api/ai/conversations/${conversationId}/suggestions`,
     { triggerMessageId, requestId },
-    { headers },
+    {
+      headers,
+      timeout: 60_000,
+    },
   )
   return data
 }
@@ -127,6 +131,7 @@ export async function sendAiFeedback(
   rating: number,
   feedbackType: 'GOOD' | 'INCORRECT',
   correctedText?: string,
+  commentText?: string,
 ) {
   const headers = await csrfHeader()
   await managementApi.post(
@@ -135,7 +140,7 @@ export async function sendAiFeedback(
       aiResponseRunId: runId,
       rating,
       feedbackType,
-      commentText: null,
+      commentText: commentText?.trim() || null,
       correctedText: correctedText?.trim() || null,
     },
     { headers },

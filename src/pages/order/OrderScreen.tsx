@@ -11,9 +11,10 @@ import {
 } from '../../stores/slices/orderSlice'
 import type { Order, OrderStatus } from '../../types/order'
 import OrderDetailModal from './OrderDetailModal'
-import { Button, message } from 'antd'
+import { Alert, Button, message } from 'antd'
 import { marketplaceApi } from '../../apis/marketplaceApi'
 import { apiErrorMessage } from '../../apis/authApi'
+import { useAuth } from '../../contexts/authContext'
 import './orders.css'
 
 // ---- Helper: hiển thị nguồn sàn ----
@@ -33,7 +34,7 @@ function StatusBadge({ status }: { status: OrderStatus }) {
   const map: Record<OrderStatus, { cls: string; label: string }> = {
     CREATED: { cls: 'pending', label: 'MỚI TẠO' },
     CONFIRMED: { cls: 'packed', label: 'ĐÃ XÁC NHẬN' },
-    READY_TO_SHIP: { cls: 'packed', label: 'SẴN SÀNG GIAO' },
+    READY_TO_SHIP: { cls: 'packed', label: 'SẴN SÀNG BÀN GIAO' },
     SHIPPED: { cls: 'in_transit', label: 'ĐÃ BÀN GIAO' },
     IN_TRANSIT: { cls: 'in_transit', label: 'ĐANG GIAO HÀNG' },
     DELIVERED: { cls: 'delivered', label: 'ĐÃ HOÀN THÀNH' },
@@ -55,11 +56,14 @@ function PaymentTag({ paymentStatus }: { paymentStatus: string }) {
 
 export default function OrderScreen() {
   const dispatch = useAppDispatch()
+  const { hasPermission } = useAuth()
   const { items, loading, error, filter, selectedOrder, isDetailOpen } = useAppSelector(
     (state) => state.orders
   )
   const [localSearch, setLocalSearch] = useState('')
   const [syncing, setSyncing] = useState(false)
+  const canFulfillOrders = hasPermission('ORDER.FULFILL')
+  const canSyncMarketplace = hasPermission('PRODUCT.UPDATE')
 
   useEffect(() => {
     dispatch(fetchOrdersThunk())
@@ -89,7 +93,7 @@ export default function OrderScreen() {
 
   // Count per tab
   const countPending = items.filter(i => i.status === 'CREATED').length
-  const countPacked = items.filter(i => i.status === 'CONFIRMED' || i.status === 'READY_TO_SHIP' || i.status === 'SHIPPED').length
+  const countPacked = items.filter(i => i.status === 'CONFIRMED' || i.status === 'READY_TO_SHIP').length
   const countInTransit = items.filter(i => i.status === 'IN_TRANSIT').length
   const countDelivered = items.filter(i => i.status === 'DELIVERED').length
   const countCancelled = items.filter(i => i.status === 'CANCELLED' || i.status === 'RETURNED' || i.status === 'FAILED').length
@@ -155,14 +159,25 @@ export default function OrderScreen() {
         <div className="order-header-left">
           <h1>Quản lý đơn hàng</h1>
         </div>
-        <Button
-          icon={<SyncOutlined spin={syncing} />}
-          loading={syncing}
-          onClick={() => void handleSync()}
-        >
-          Đồng bộ từ sàn
-        </Button>
+        {canSyncMarketplace && (
+          <Button
+            icon={<SyncOutlined spin={syncing} />}
+            loading={syncing}
+            onClick={() => void handleSync()}
+          >
+            Đồng bộ từ sàn
+          </Button>
+        )}
       </div>
+
+      {!canFulfillOrders && (
+        <Alert
+          message="Chế độ chỉ xem"
+          description="Tài khoản CSKH có thể xem và tìm kiếm đơn hàng nhưng không thể đồng bộ hoặc cập nhật trạng thái đơn."
+          showIcon
+          type="info"
+        />
+      )}
 
       {/* ===== STATUS TABS ===== */}
       <div className="order-status-tabs">
@@ -192,7 +207,7 @@ export default function OrderScreen() {
           onClick={() => dispatch(setStatusTab('READY_TO_SHIP'))}
           type="button"
         >
-          Đang đóng gói&nbsp;
+          Chờ bàn giao&nbsp;
           <span className="tab-count">{countPacked}</span>
         </button>
 
@@ -251,7 +266,7 @@ export default function OrderScreen() {
       <div className="order-table-container">
         <table className="order-table">
           <colgroup>
-            <col className="col-check" />
+            {canFulfillOrders && <col className="col-check" />}
             <col className="col-code" />
             <col className="col-source" />
             <col className="col-customer" />
@@ -261,7 +276,7 @@ export default function OrderScreen() {
           </colgroup>
           <thead>
             <tr>
-              <th><input type="checkbox" /></th>
+              {canFulfillOrders && <th><input type="checkbox" /></th>}
               <th>MÃ ĐƠN / THỜI GIAN</th>
               <th>NGUỒN SÀN &amp; KÊNH SHIP</th>
               <th>KHÁCH HÀNG &amp; ĐỊA CHỈ</th>
@@ -273,13 +288,13 @@ export default function OrderScreen() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: 40, color: '#9ca3af' }}>
+                <td colSpan={canFulfillOrders ? 7 : 6} style={{ textAlign: 'center', padding: 40, color: '#9ca3af' }}>
                   Đang tải dữ liệu...
                 </td>
               </tr>
             ) : filteredOrders.length === 0 ? (
               <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: 40, color: '#9ca3af' }}>
+                <td colSpan={canFulfillOrders ? 7 : 6} style={{ textAlign: 'center', padding: 40, color: '#9ca3af' }}>
                   Không có đơn hàng nào
                 </td>
               </tr>
@@ -292,7 +307,7 @@ export default function OrderScreen() {
                 return (
                   <tr key={order.id}>
                     {/* Checkbox */}
-                    <td><input type="checkbox" /></td>
+                    {canFulfillOrders && <td><input type="checkbox" /></td>}
 
                     {/* Mã đơn / Thời gian */}
                     <td>
@@ -356,7 +371,7 @@ export default function OrderScreen() {
                     <td>
                       <div className="order-status-cell">
                         <StatusBadge status={order.status} />
-                        {order.status === 'CREATED' && (
+                        {canFulfillOrders && order.status === 'CREATED' && (
                           <button
                             className="btn-approve"
                             onClick={() => handleApprove(order)}
@@ -400,6 +415,7 @@ export default function OrderScreen() {
 
       {/* ===== ORDER DETAIL MODAL ===== */}
       <OrderDetailModal
+        canUpdateStatus={canFulfillOrders}
         open={isDetailOpen}
         order={selectedOrder}
         onClose={() => dispatch(closeOrderDetail())}

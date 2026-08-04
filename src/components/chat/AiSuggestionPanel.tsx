@@ -1,27 +1,35 @@
 import {
-  CheckOutlined,
   CloseOutlined,
+  PauseCircleOutlined,
+  PlayCircleOutlined,
   RobotOutlined,
   SendOutlined,
   WarningOutlined,
 } from '@ant-design/icons'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { AiRun } from '../../apis/aiConversationApi'
+
+type AiPanelMode = 'ai-autopilot' | 'human' | 'ai-recommend'
 
 type AiSuggestionPanelProps = {
   run: AiRun | null
+  mode: AiPanelMode
+  aiIssueReason: string | null
   canSuggest: boolean
   canApprove: boolean
   isBusy: boolean
-  isAiEnabled: boolean
+  isAutopilotActive: boolean
   errorMessage: string | null
   onGenerate: () => Promise<void>
+  onPauseAutopilot: () => Promise<void>
+  onStartAutopilot: () => Promise<void>
   onApprove: (text: string, send: boolean) => Promise<void>
   onReject: (reason: string) => Promise<void>
   onFeedback: (
     rating: number,
     feedbackType: 'GOOD' | 'INCORRECT',
-    correctedText: string,
+    correctedText?: string,
+    commentText?: string,
   ) => Promise<void>
   onUseSuggestion: (text: string) => void
 }
@@ -39,93 +47,161 @@ const statusLabels: Record<AiRun['status'], string> = {
 
 export default function AiSuggestionPanel({
   run,
+  mode,
+  aiIssueReason,
   canSuggest,
   canApprove,
   isBusy,
-  isAiEnabled,
+  isAutopilotActive,
   errorMessage,
   onGenerate,
+  onPauseAutopilot,
+  onStartAutopilot,
   onApprove,
   onReject,
   onFeedback,
   onUseSuggestion,
 }: AiSuggestionPanelProps) {
-  const [answer, setAnswer] = useState(run?.generated_text ?? '')
   const [rejectReason, setRejectReason] = useState('')
   const [showReject, setShowReject] = useState(false)
   const [feedbackSent, setFeedbackSent] = useState(false)
+  const [showFeedbackReason, setShowFeedbackReason] = useState(false)
+  const [feedbackReason, setFeedbackReason] = useState('')
 
-  useEffect(() => {
-    setAnswer(run?.generated_text ?? '')
-    setRejectReason('')
-    setShowReject(false)
-    setFeedbackSent(false)
-  }, [run?.generated_text, run?.id])
-
+  const answer = run?.generated_text?.trim() ?? ''
   const analysis = run?.result?.analysis
   const failedChecks = run?.quality_checks.filter((check) => !check.passed) ?? []
-  const isHandoff = run?.status === 'HANDED_OFF'
+  const isAutopilot = mode === 'ai-autopilot'
+  const isAutopilotRun =
+    isAutopilot ||
+    run?.prompt_version === 'stateless-autopilot-v1' ||
+    Boolean(aiIssueReason)
+  const isRecommend = mode === 'ai-recommend'
+  const isRunError = run?.status === 'FAILED' || run?.status === 'HANDED_OFF'
+  const displayedError =
+    errorMessage ??
+    aiIssueReason ??
+    (isRunError
+      ? run?.failure_reason ?? run?.result?.handoff_reason ?? 'AI cần nhân viên xử lý.'
+      : null)
+  const isError = Boolean(displayedError)
   const canReview =
+    isRecommend &&
     canApprove &&
-    Boolean(answer.trim()) &&
+    Boolean(answer) &&
     run !== null &&
-    ['GENERATED', 'APPROVED', 'REJECTED'].includes(run.status)
+    ['GENERATED', 'APPROVED'].includes(run.status)
+  const canSendFeedback =
+    Boolean(answer) &&
+    run !== null &&
+    ['GENERATED', 'APPROVED', 'SENT', 'HANDED_OFF'].includes(run.status)
+
+  const panelTitle = isAutopilot || aiIssueReason
+    ? 'AI Autopilot'
+    : isRecommend
+      ? 'Trợ lý AI đề xuất'
+      : 'Trợ lý AI'
+  const panelStatus = isError
+    ? 'AI gặp lỗi và hội thoại đã chuyển cho nhân viên'
+    : isAutopilot
+      ? isAutopilotActive
+        ? 'AI đang đảm nhận hội thoại này'
+        : 'AI Autopilot chưa được bắt đầu'
+      : isRecommend
+        ? run
+          ? statusLabels[run.status]
+          : 'Chưa tạo gợi ý cho tin nhắn mới nhất'
+        : 'Nhân viên đang đảm nhận hội thoại này'
 
   return (
-    <section className={`chat-ai-panel ${isHandoff ? 'is-handoff' : ''}`}>
+    <section className={`chat-ai-panel ${isError ? 'is-error' : ''}`}>
       <header>
         <div className="chat-ai-title">
           <span><RobotOutlined /></span>
           <div>
-            <strong>Trợ lý AI</strong>
-            <small>
-              {run ? statusLabels[run.status] : 'Chưa tạo gợi ý cho tin nhắn mới nhất'}
-            </small>
+            <strong>{panelTitle}</strong>
+            <small>{panelStatus}</small>
           </div>
         </div>
-        <button
-          className="chat-ai-generate"
-          disabled={!canSuggest || !isAiEnabled || isBusy}
-          onClick={() => void onGenerate()}
-          type="button"
-        >
-          {isBusy ? 'Đang xử lý...' : 'Tạo gợi ý'}
-        </button>
+
+        {isAutopilot && isAutopilotActive ? (
+          <button
+            className="chat-ai-pause"
+            disabled={!canSuggest || isBusy}
+            onClick={() => void onPauseAutopilot()}
+            type="button"
+          >
+            <PauseCircleOutlined /> {isBusy ? 'Đang dừng...' : 'Tạm dừng AI'}
+          </button>
+        ) : null}
+
+        {isAutopilot && !isAutopilotActive ? (
+          <button
+            className="chat-ai-start"
+            disabled={!canSuggest || isBusy}
+            onClick={() => void onStartAutopilot()}
+            type="button"
+          >
+            <PlayCircleOutlined /> {isBusy ? 'Đang bắt đầu...' : 'Bắt đầu AI'}
+          </button>
+        ) : null}
+
+        {isRecommend ? (
+          <button
+            className="chat-ai-generate"
+            disabled={!canSuggest || isBusy}
+            onClick={() => void onGenerate()}
+            type="button"
+          >
+            {isBusy ? 'Đang xử lý...' : 'Tạo gợi ý'}
+          </button>
+        ) : null}
       </header>
 
       {!canSuggest ? (
         <p className="chat-ai-notice">Tài khoản chưa có quyền AI.SUGGEST.</p>
       ) : null}
-      {canSuggest && !isAiEnabled ? (
+
+      {mode === 'human' && !isError ? (
         <p className="chat-ai-notice">
-          AI đang tắt hoặc đã chuyển nhân viên. Chọn “AI gợi ý” để bật lại.
+          AI đang tạm dừng. Chọn AI Autopilot hoặc AI recommend để bật lại.
         </p>
       ) : null}
-      {errorMessage ? <p className="chat-ai-error">{errorMessage}</p> : null}
 
-      {isHandoff ? (
+      {isAutopilot && !isAutopilotActive && !isError ? (
+        <div className="chat-ai-autopilot-state">
+          AI chưa xử lý tin nhắn. Bấm “Bắt đầu AI” để kích hoạt Autopilot cho
+          riêng hội thoại này.
+        </div>
+      ) : null}
+
+      {isAutopilot && isAutopilotActive && !isError ? (
+        <div className="chat-ai-autopilot-state">
+          AI sẽ tự động phân tích và trả lời tin nhắn mới. Nhân viên có thể tạm dừng
+          bất kỳ lúc nào để chuyển hội thoại về Human.
+        </div>
+      ) : null}
+
+      {displayedError ? (
         <div className="chat-ai-handoff">
           <WarningOutlined />
           <div>
             <strong>AI đã dừng xử lý hội thoại này</strong>
-            <span>
-              {run?.result?.handoff_reason ??
-                run?.failure_reason ??
-                'Tình huống cần nhân viên trực tiếp xử lý.'}
-            </span>
+            <span>{displayedError}</span>
           </div>
         </div>
       ) : null}
 
       {run && answer ? (
         <div className="chat-ai-body">
-          <textarea
-            aria-label="Nội dung gợi ý AI"
-            disabled={isBusy || run.status === 'SENT'}
-            onChange={(event) => setAnswer(event.target.value)}
-            rows={3}
-            value={answer}
-          />
+          <div
+            aria-label="Nội dung phản hồi của AI"
+            aria-readonly="true"
+            className="chat-ai-response"
+            role="textbox"
+          >
+            {answer}
+          </div>
 
           <div className="chat-ai-meta">
             {analysis ? (
@@ -142,28 +218,19 @@ export default function AiSuggestionPanel({
             {failedChecks.length > 0 ? (
               <span className="is-warning">{failedChecks.length} kiểm tra chưa đạt</span>
             ) : null}
-            {run.sources.length > 0 ? (
-              <span>{run.sources.length} nguồn RAG</span>
-            ) : null}
+            {run.sources.length > 0 ? <span>{run.sources.length} nguồn RAG</span> : null}
           </div>
 
-          <div className="chat-ai-actions">
-            <button
-              disabled={isBusy || !answer.trim()}
-              onClick={() => onUseSuggestion(answer.trim())}
-              type="button"
-            >
-              Dùng làm bản nháp
-            </button>
-            {canReview ? (
-              <>
-                <button
-                  disabled={isBusy}
-                  onClick={() => void onApprove(answer, false)}
-                  type="button"
-                >
-                  <CheckOutlined /> Duyệt
-                </button>
+          {isRecommend ? (
+            <div className="chat-ai-actions">
+              <button
+                disabled={isBusy || !answer}
+                onClick={() => onUseSuggestion(answer)}
+                type="button"
+              >
+                Dùng làm bản nháp
+              </button>
+              {canReview ? (
                 <button
                   className="is-primary"
                   disabled={isBusy}
@@ -172,21 +239,21 @@ export default function AiSuggestionPanel({
                 >
                   <SendOutlined /> Duyệt &amp; gửi
                 </button>
-              </>
-            ) : null}
-            {canApprove && run.status === 'GENERATED' ? (
-              <button
-                className="is-danger"
-                disabled={isBusy}
-                onClick={() => setShowReject((current) => !current)}
-                type="button"
-              >
-                <CloseOutlined /> Từ chối
-              </button>
-            ) : null}
-          </div>
+              ) : null}
+              {canApprove && run.status === 'GENERATED' ? (
+                <button
+                  className="is-danger"
+                  disabled={isBusy}
+                  onClick={() => setShowReject((current) => !current)}
+                  type="button"
+                >
+                  <CloseOutlined /> Từ chối
+                </button>
+              ) : null}
+            </div>
+          ) : null}
 
-          {showReject ? (
+          {isRecommend && showReject ? (
             <div className="chat-ai-reject">
               <input
                 onChange={(event) => setRejectReason(event.target.value)}
@@ -203,7 +270,7 @@ export default function AiSuggestionPanel({
             </div>
           ) : null}
 
-          {!feedbackSent && ['GENERATED', 'APPROVED', 'SENT'].includes(run.status) ? (
+          {!feedbackSent && canSendFeedback ? (
             <div className="chat-ai-feedback">
               <span>Gợi ý này hữu ích?</span>
               <button
@@ -220,17 +287,45 @@ export default function AiSuggestionPanel({
               <button
                 disabled={isBusy}
                 onClick={() => {
+                  if (isAutopilotRun) {
+                    setShowFeedbackReason(true)
+                    return
+                  }
                   void onFeedback(2, 'INCORRECT', answer)
                     .then(() => setFeedbackSent(true))
                     .catch(() => undefined)
                 }}
                 type="button"
               >
-                Chưa đúng
+                {isAutopilotRun ? 'Không' : 'Chưa đúng'}
               </button>
             </div>
           ) : null}
-          {feedbackSent ? <p className="chat-ai-feedback-sent">Đã lưu phản hồi.</p> : null}
+
+          {!feedbackSent && showFeedbackReason ? (
+            <div className="chat-ai-feedback-reason">
+              <input
+                onChange={(event) => setFeedbackReason(event.target.value)}
+                placeholder="Cho biết lý do gợi ý chưa hữu ích"
+                value={feedbackReason}
+              />
+              <button
+                disabled={isBusy || feedbackReason.trim().length < 3}
+                onClick={() => {
+                  void onFeedback(2, 'INCORRECT', answer, feedbackReason.trim())
+                    .then(() => setFeedbackSent(true))
+                    .catch(() => undefined)
+                }}
+                type="button"
+              >
+                Gửi phản hồi
+              </button>
+            </div>
+          ) : null}
+
+          {feedbackSent ? (
+            <p className="chat-ai-feedback-sent">Đã lưu phản hồi.</p>
+          ) : null}
         </div>
       ) : null}
     </section>

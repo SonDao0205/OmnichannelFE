@@ -31,7 +31,10 @@ import ChatWindow, {
 import ConversationInbox from '../../components/chat/ConversationInbox'
 import CustomerProfilePanel from '../../components/chat/CustomerProfilePanel'
 import { useAuth } from '../../contexts/authContext'
-import { useChatRealtime } from '../../hooks/useChatRealtime'
+import {
+  useChatRealtime,
+  type ConversationUpdatedPayload,
+} from '../../hooks/useChatRealtime'
 import './chat.css'
 
 const PINNED_CONVERSATIONS_STORAGE_KEY = 'omnichannel:pinned-conversations'
@@ -161,6 +164,9 @@ export default function ChatScreen() {
       ) ?? null,
     [conversations, selectedConversationId],
   )
+  const effectiveResponderMode: ResponderMode = selectedConversation?.aiNeedsHuman
+    ? 'human'
+    : responderMode
 
   const loadConversations = useCallback(
     async (silent = false) => {
@@ -178,7 +184,7 @@ export default function ChatScreen() {
         setSelectedConversationId((currentId) =>
           currentId && data.some((item) => item.id === currentId)
             ? currentId
-            : data[0]?.id ?? null,
+            : null,
         )
         setErrorMessage(null)
       } catch {
@@ -290,19 +296,59 @@ export default function ChatScreen() {
           : created
       if (result && selectedConversationIdRef.current === conversationId) {
         setAiRun(result)
-        if (result.status === 'HANDED_OFF') {
+        if (result.status === 'HANDED_OFF' || result.status === 'FAILED') {
+          const issueReason =
+            result.failure_reason ??
+            result.result?.handoff_reason ??
+            'AI không thể trả lời. Hội thoại đã chuyển cho nhân viên.'
           setResponderMode('human')
+          setAiErrorMessage(issueReason)
           setConversationDetail((current) =>
-            current ? { ...current, aiMode: 'PAUSED' } : current,
+            current ? { ...current, aiMode: 'HUMAN_ONLY' } : current,
+          )
+          setConversations((currentConversations) =>
+            currentConversations.map((conversation) =>
+              conversation.id === conversationId
+                ? {
+                    ...conversation,
+                    aiMode: 'HUMAN_ONLY',
+                    aiNeedsHuman: true,
+                    aiIssueReason: issueReason,
+                  }
+                : conversation,
+            ),
           )
         }
       }
+      await loadConversations(true)
     } catch (error) {
-      setAiErrorMessage(apiErrorMessage(error))
+      const issueReason = apiErrorMessage(error)
+      setResponderMode('human')
+      setAiErrorMessage(issueReason)
+      setConversationDetail((current) =>
+        current ? { ...current, aiMode: 'HUMAN_ONLY' } : current,
+      )
+      setConversations((currentConversations) =>
+        currentConversations.map((conversation) =>
+          conversation.id === conversationId
+            ? {
+                ...conversation,
+                aiMode: 'HUMAN_ONLY',
+                aiNeedsHuman: true,
+                aiIssueReason: issueReason,
+              }
+            : conversation,
+        ),
+      )
+      try {
+        await updateAiConversationMode(conversationId, 'HUMAN_ONLY')
+      } catch {
+        // Keep the local human handoff visible even if the management API is unavailable.
+      }
     } finally {
       setIsAiBusy(false)
     }
-  }, [canSuggest, pollAiRun])
+  }, [canSuggest, loadConversations, pollAiRun])
 
   const handleGenerateAiSuggestion = async () => {
     const conversationId = selectedConversationId
@@ -346,7 +392,30 @@ export default function ChatScreen() {
     setIsAiBusy(true)
     setAiErrorMessage(null)
     try {
-      setAiRun(await rejectAiRun(aiRun.id, reason))
+      const result = await rejectAiRun(aiRun.id, reason)
+      const issueReason =
+        result.failure_reason ?? reason ?? 'AI đã dừng và cần nhân viên xử lý.'
+      setAiRun(result)
+      setResponderMode('human')
+      setConversationDetail((current) =>
+        current ? { ...current, aiMode: 'HUMAN_ONLY' } : current,
+      )
+      setConversations((currentConversations) =>
+        currentConversations.map((conversation) =>
+          conversation.id === selectedConversationId
+            ? {
+                ...conversation,
+                aiMode: 'HUMAN_ONLY',
+                aiNeedsHuman: true,
+                aiIssueReason: issueReason,
+              }
+            : conversation,
+        ),
+      )
+      if (selectedConversationId) {
+        await updateAiConversationMode(selectedConversationId, 'HUMAN_ONLY')
+      }
+      await loadConversations(true)
     } catch (error) {
       setAiErrorMessage(apiErrorMessage(error))
     } finally {
@@ -357,13 +426,20 @@ export default function ChatScreen() {
   const handleAiFeedback = async (
     rating: number,
     feedbackType: 'GOOD' | 'INCORRECT',
-    correctedText: string,
+    correctedText?: string,
+    commentText?: string,
   ) => {
     if (!aiRun || !canSuggest) return
     setIsAiBusy(true)
     setAiErrorMessage(null)
     try {
-      await sendAiFeedback(aiRun.id, rating, feedbackType, correctedText)
+      await sendAiFeedback(
+        aiRun.id,
+        rating,
+        feedbackType,
+        correctedText,
+        commentText,
+      )
     } catch (error) {
       setAiErrorMessage(apiErrorMessage(error))
       throw error
@@ -386,12 +462,46 @@ export default function ChatScreen() {
       setConversationDetail((current) =>
         current ? { ...current, aiMode: result.aiMode } : current,
       )
+      setConversations((currentConversations) =>
+        currentConversations.map((conversation) =>
+          conversation.id === selectedConversationId
+            ? {
+                ...conversation,
+                aiMode: result.aiMode,
+                aiNeedsHuman:
+                  result.aiMode === 'HUMAN_ONLY' && conversation.aiNeedsHuman,
+                aiIssueReason:
+                  result.aiMode === 'HUMAN_ONLY'
+                    ? conversation.aiIssueReason
+                    : null,
+              }
+            : conversation,
+        ),
+      )
     } catch (error) {
       setResponderMode(previousMode)
       setAiErrorMessage(apiErrorMessage(error))
     } finally {
       setIsAiBusy(false)
     }
+  }
+
+  const handleResponderModeSelection = async (mode: ResponderMode) => {
+    if (selectedConversation?.aiNeedsHuman && mode !== 'human') {
+      setResponderMode('human')
+      setAiErrorMessage(
+        'AI đã dừng. Nhân viên cần trả lời khách hàng trước khi bật lại AI.',
+      )
+      return
+    }
+
+    if (mode === 'ai-autopilot') {
+      setResponderMode('ai-autopilot')
+      setAiErrorMessage(null)
+      return
+    }
+
+    await handleResponderModeChange(mode)
   }
 
   const handleMessageCreated = useCallback(
@@ -426,7 +536,19 @@ export default function ChatScreen() {
     ],
   )
 
-  const handleConversationUpdated = useCallback(() => {
+  const handleConversationUpdated = useCallback((payload: ConversationUpdatedPayload) => {
+    if (payload.conversationId === selectedConversationIdRef.current) {
+      const nextAiMode = payload.aiMode ?? payload.conversation?.aiMode
+      if (nextAiMode) {
+        setResponderMode(responderModeFromAiMode(nextAiMode))
+        setConversationDetail((current) =>
+          current ? { ...current, aiMode: nextAiMode } : current,
+        )
+      }
+      if (payload.handoff?.reasonText) {
+        setAiErrorMessage(payload.handoff.reasonText)
+      }
+    }
     void loadConversations(true)
   }, [loadConversations])
 
@@ -471,6 +593,7 @@ export default function ChatScreen() {
       />
       <ChatWindow
         aiErrorMessage={aiErrorMessage}
+        aiIssueReason={selectedConversation?.aiIssueReason ?? null}
         aiRun={aiRun}
         canApprove={canApprove}
         canSuggest={canSuggest}
@@ -480,20 +603,25 @@ export default function ChatScreen() {
         isLoading={isThreadLoading}
         isSending={isSending}
         isAiBusy={isAiBusy}
+        isAutopilotActive={
+          !selectedConversation?.aiNeedsHuman &&
+          (conversationDetail?.aiMode === 'AUTO' || selectedConversation?.aiMode === 'AUTO')
+        }
         messages={messages}
-        responderMode={responderMode}
+        responderMode={effectiveResponderMode}
         onAiFeedback={handleAiFeedback}
         onApproveAiRun={handleApproveAiRun}
         onGenerateAiSuggestion={handleGenerateAiSuggestion}
         onRejectAiRun={handleRejectAiRun}
-        onResponderModeChange={handleResponderModeChange}
+        onResponderModeChange={handleResponderModeSelection}
+        onStartAutopilot={() => handleResponderModeChange('ai-autopilot')}
         onSendMessage={handleSendMessage}
       />
       <CustomerProfilePanel
         conversation={selectedConversation}
         detail={conversationDetail}
         orderHistory={orderHistory}
-        showAiBehaviorInsights={responderMode === 'ai-recommend'}
+        showAiBehaviorInsights={effectiveResponderMode === 'ai-recommend'}
       />
     </section>
   )

@@ -1,9 +1,9 @@
-import { SearchOutlined, StarFilled } from '@ant-design/icons'
+import { SearchOutlined, StarFilled, WarningFilled } from '@ant-design/icons'
 import { useMemo, useState } from 'react'
 import type { ChatChannelFilter, ChatConversation } from '../../apis/chatApi'
 import Avatar from './Avatar'
 
-type InboxStatusFilter = 'unread' | 'read' | 'pinned'
+type InboxStatusFilter = 'attention' | 'read' | 'pinned'
 
 type ConversationInboxProps = {
   channel: ChatChannelFilter
@@ -57,7 +57,7 @@ export default function ConversationInbox({
   onTogglePinnedConversation,
 }: ConversationInboxProps) {
   const [keyword, setKeyword] = useState('')
-  const [statusFilter, setStatusFilter] = useState<InboxStatusFilter>('unread')
+  const [statusFilter, setStatusFilter] = useState<InboxStatusFilter>('attention')
 
   const filteredConversations = useMemo(() => {
     const normalizedKeyword = keyword.trim().toLowerCase()
@@ -69,18 +69,22 @@ export default function ConversationInbox({
         (conversation.lastMessage ?? '').toLowerCase().includes(normalizedKeyword)
 
       if (!matchesKeyword) return false
-      if (statusFilter === 'unread') return conversation.unreadCount > 0
-      if (statusFilter === 'read') return conversation.unreadCount === 0
+      if (statusFilter === 'attention') {
+        return conversation.unreadCount > 0 || conversation.aiNeedsHuman
+      }
+      if (statusFilter === 'read') {
+        return conversation.unreadCount === 0 && !conversation.aiNeedsHuman
+      }
 
       return pinnedConversationIds.has(conversation.id)
     })
   }, [conversations, keyword, pinnedConversationIds, statusFilter])
 
-  const unreadCount = conversations.filter(
-    (conversation) => conversation.unreadCount > 0,
+  const attentionCount = conversations.filter(
+    (conversation) => conversation.unreadCount > 0 || conversation.aiNeedsHuman,
   ).length
   const readCount = conversations.filter(
-    (conversation) => conversation.unreadCount === 0,
+    (conversation) => conversation.unreadCount === 0 && !conversation.aiNeedsHuman,
   ).length
   const pinnedCount = conversations.filter((conversation) =>
     pinnedConversationIds.has(conversation.id),
@@ -91,7 +95,7 @@ export default function ConversationInbox({
     value: InboxStatusFilter
     count: number
   }> = [
-    { label: 'Ch\u01b0a \u0111\u1ecdc', value: 'unread', count: unreadCount },
+    { label: 'Cần xử lý', value: 'attention', count: attentionCount },
     { label: '\u0110\u00e3 \u0111\u1ecdc', value: 'read', count: readCount },
     { label: 'Ghim', value: 'pinned', count: pinnedCount },
   ]
@@ -153,7 +157,9 @@ export default function ConversationInbox({
 
           return (
             <div
-              className={`chat-conversation ${isActive ? 'is-active' : ''}`}
+              className={`chat-conversation ${isActive ? 'is-active' : ''} ${
+                conversation.aiNeedsHuman ? 'is-ai-alert' : ''
+              }`}
               key={conversation.id}
               onClick={() => onSelectConversation(conversation.id)}
               onKeyDown={(event) => {
@@ -164,6 +170,7 @@ export default function ConversationInbox({
               }}
               role="button"
               tabIndex={0}
+              title={conversation.aiIssueReason ?? undefined}
             >
               <Avatar
                 avatarUrl={conversation.avatarUrl}
@@ -177,6 +184,11 @@ export default function ConversationInbox({
                   <span className={channelTagClass}>{conversation.channelName}</span>
                   {conversation.priority !== 'NORMAL' ? (
                     <span className="chat-tag">{conversation.priority}</span>
+                  ) : null}
+                  {conversation.aiNeedsHuman ? (
+                    <span className="chat-tag chat-tag--ai-alert">
+                      <WarningFilled /> AI cần xử lý
+                    </span>
                   ) : null}
                 </div>
               </div>

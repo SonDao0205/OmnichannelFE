@@ -8,10 +8,11 @@ import {
   DeleteOutlined,
   PictureOutlined,
 } from '@ant-design/icons'
-import { Checkbox, Modal, Popconfirm, Radio, Select, Table, Tag, message } from 'antd'
+import { Alert, Checkbox, Modal, Popconfirm, Radio, Select, Table, Tag, message } from 'antd'
 import Swal from 'sweetalert2'
 
 import { useAppDispatch, useAppSelector } from '../../hooks/redux'
+import { useAuth } from '../../contexts/authContext'
 import {
   fetchProductsThunk,
   createProductThunk,
@@ -54,6 +55,7 @@ function MarketplaceTags({ marketplaces }: { marketplaces: string[] }) {
 
 export default function ProductScreen() {
   const dispatch = useAppDispatch()
+  const { hasPermission } = useAuth()
   const { items, loading, error, filter, selectedProduct, isModalOpen } = useAppSelector(
     (state) => state.products
   )
@@ -63,6 +65,10 @@ export default function ProductScreen() {
   const [syncScope, setSyncScope] = useState<'SELECTED' | 'ALL'>('ALL')
   const [syncAccountIds, setSyncAccountIds] = useState<string[]>([])
   const [syncing, setSyncing] = useState(false)
+  const canCreateProduct = hasPermission('PRODUCT.CREATE')
+  const canUpdateProduct = hasPermission('PRODUCT.UPDATE')
+  const canDeleteProduct = hasPermission('PRODUCT.DELETE')
+  const canManageProducts = canCreateProduct || canUpdateProduct || canDeleteProduct
 
   useEffect(() => {
     dispatch(fetchProductsThunk())
@@ -217,6 +223,12 @@ export default function ProductScreen() {
     const uploaded = pendingFiles.length > 0
       ? await productApi.uploadMedia(productId, pendingFiles.map((item) => item.file!))
       : []
+    if (
+      uploaded.length !== pendingFiles.length
+      || uploaded.some((item) => !item.id || !item.storageKey || !item.publicUrl)
+    ) {
+      throw new Error('Cloudinary chưa xác nhận tải lên đầy đủ toàn bộ media.')
+    }
 
     const retainedIds = new Set(
       drafts.flatMap((item) => item.existingId ? [item.existingId] : []),
@@ -405,6 +417,9 @@ export default function ProductScreen() {
       ),
     },
   ]
+  const visibleTableColumns = canManageProducts
+    ? tableColumns
+    : tableColumns.filter((column) => column.key !== 'action')
 
   // ---- Render card body trạng thái ----
   function renderVariantRow(prod: Product) {
@@ -465,31 +480,46 @@ export default function ProductScreen() {
           </div>
         </div>
 
-        <div className="product-header-actions">
-          <button
-            id="btn-sync"
-            className="btn-sync-marketplace"
-            onClick={openSyncModal}
-            disabled={loading || syncing}
-            type="button"
-          >
-            <SyncOutlined spin={syncing} /> Đồng bộ Sàn
-          </button>
-          {selectedProductIds.length > 0 && (
-            <span className="product-selected-count">
-              Đã chọn {selectedProductIds.length}
-            </span>
-          )}
-          <button
-            id="btn-add-product"
-            className="btn-add-product"
-            onClick={() => dispatch(openModal(null))}
-            type="button"
-          >
-            <PlusOutlined /> Thêm sản phẩm
-          </button>
-        </div>
+        {canManageProducts && (
+          <div className="product-header-actions">
+            {canUpdateProduct && (
+              <button
+                id="btn-sync"
+                className="btn-sync-marketplace"
+                onClick={openSyncModal}
+                disabled={loading || syncing}
+                type="button"
+              >
+                <SyncOutlined spin={syncing} /> Đồng bộ Sàn
+              </button>
+            )}
+            {canUpdateProduct && selectedProductIds.length > 0 && (
+              <span className="product-selected-count">
+                Đã chọn {selectedProductIds.length}
+              </span>
+            )}
+            {canCreateProduct && (
+              <button
+                id="btn-add-product"
+                className="btn-add-product"
+                onClick={() => dispatch(openModal(null))}
+                type="button"
+              >
+                <PlusOutlined /> Thêm sản phẩm
+              </button>
+            )}
+          </div>
+        )}
       </div>
+
+      {!canManageProducts && (
+        <Alert
+          message="Chế độ chỉ xem"
+          description="Tài khoản CSKH có thể xem thông tin sản phẩm nhưng không thể tạo, sửa, xóa, nhập kho hoặc đồng bộ sản phẩm."
+          showIcon
+          type="info"
+        />
+      )}
 
       {/* ===== FILTER BAR ===== */}
       <div className="product-filter-bar">
@@ -550,17 +580,19 @@ export default function ProductScreen() {
               key={prod.id}
               className={`product-card ${prod.status === 'DRAFT' ? 'is-draft' : ''}`}
             >
-              <div className="product-card-select">
-                <Checkbox
-                  checked={selectedProductIds.includes(prod.id)}
-                  onChange={(event) => setSelectedProductIds((current) =>
-                    event.target.checked
-                      ? [...new Set([...current, prod.id])]
-                      : current.filter((id) => id !== prod.id))}
-                >
-                  Chọn
-                </Checkbox>
-              </div>
+              {canUpdateProduct && (
+                <div className="product-card-select">
+                  <Checkbox
+                    checked={selectedProductIds.includes(prod.id)}
+                    onChange={(event) => setSelectedProductIds((current) =>
+                      event.target.checked
+                        ? [...new Set([...current, prod.id])]
+                        : current.filter((id) => id !== prod.id))}
+                  >
+                    Chọn
+                  </Checkbox>
+                </div>
+              )}
               {/* --- Card Image Section --- */}
               <div
                 className={`product-card-media ${!prod.imageUrl ? 'no-image' : ''}`}
@@ -638,65 +670,69 @@ export default function ProductScreen() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="product-card-actions">
-                  {prod.status === 'LOW_STOCK' ? (
-                    <button
-                      className="btn-card-restock"
-                      onClick={() => {
-                        Swal.fire({
-                          title: 'Nhập kho',
-                          text: `Nhập thêm số lượng cho: ${prod.name}`,
-                          input: 'number',
-                          inputValue: 50,
-                          showCancelButton: true,
-                          confirmButtonText: 'Xác nhận nhập',
-                          cancelButtonText: 'Hủy',
-                        }).then((res) => {
-                          if (res.isConfirmed && res.value) {
-                            dispatch(adjustStockThunk({
-                              id: prod.id,
-                              delta: Number(res.value),
-                              note: 'Nhập kho từ màn hình quản lý sản phẩm',
-                            })).unwrap()
-                              .then(() => message.success('Nhập kho thành công!'))
-                              .catch(() => undefined)
-                          }
-                        })
-                      }}
-                      type="button"
-                    >
-                      Nhập kho ngay
-                    </button>
-                  ) : prod.status === 'DRAFT' ? (
-                    <button
-                      className="btn-card-configure"
-                      onClick={() => dispatch(openModal(prod))}
-                      type="button"
-                    >
-                      Cấu hình tiếp
-                    </button>
-                  ) : (
-                    <button
-                      className="btn-card-edit"
-                      onClick={() => dispatch(openModal(prod))}
-                      type="button"
-                    >
-                      Sửa thông tin
-                    </button>
-                  )}
+                {canManageProducts && (
+                  <div className="product-card-actions">
+                    {canUpdateProduct && (prod.status === 'LOW_STOCK' ? (
+                      <button
+                        className="btn-card-restock"
+                        onClick={() => {
+                          Swal.fire({
+                            title: 'Nhập kho',
+                            text: `Nhập thêm số lượng cho: ${prod.name}`,
+                            input: 'number',
+                            inputValue: 50,
+                            showCancelButton: true,
+                            confirmButtonText: 'Xác nhận nhập',
+                            cancelButtonText: 'Hủy',
+                          }).then((res) => {
+                            if (res.isConfirmed && res.value) {
+                              dispatch(adjustStockThunk({
+                                id: prod.id,
+                                delta: Number(res.value),
+                                note: 'Nhập kho từ màn hình quản lý sản phẩm',
+                              })).unwrap()
+                                .then(() => message.success('Nhập kho thành công!'))
+                                .catch(() => undefined)
+                            }
+                          })
+                        }}
+                        type="button"
+                      >
+                        Nhập kho ngay
+                      </button>
+                    ) : prod.status === 'DRAFT' ? (
+                      <button
+                        className="btn-card-configure"
+                        onClick={() => dispatch(openModal(prod))}
+                        type="button"
+                      >
+                        Cấu hình tiếp
+                      </button>
+                    ) : (
+                      <button
+                        className="btn-card-edit"
+                        onClick={() => dispatch(openModal(prod))}
+                        type="button"
+                      >
+                        Sửa thông tin
+                      </button>
+                    ))}
 
-                  <Popconfirm
-                    title="Xóa sản phẩm"
-                    description="Bạn có chắc chắn muốn xóa sản phẩm này?"
-                    onConfirm={() => handleDelete(prod.id)}
-                    okText="Xóa"
-                    cancelText="Hủy"
-                  >
-                    <button className="btn-card-delete" type="button" title="Xóa sản phẩm">
-                      <DeleteOutlined />
-                    </button>
-                  </Popconfirm>
-                </div>
+                  {canDeleteProduct && (
+                    <Popconfirm
+                      title="Xóa sản phẩm"
+                      description="Bạn có chắc chắn muốn xóa sản phẩm này?"
+                      onConfirm={() => handleDelete(prod.id)}
+                      okText="Xóa"
+                      cancelText="Hủy"
+                    >
+                      <button className="btn-card-delete" type="button" title="Xóa sản phẩm">
+                        <DeleteOutlined />
+                      </button>
+                    </Popconfirm>
+                  )}
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -706,15 +742,15 @@ export default function ProductScreen() {
         <div style={{ marginTop: 18 }}>
           <Table
             dataSource={filteredItems}
-            columns={tableColumns}
+            columns={visibleTableColumns}
             rowKey="id"
             loading={loading}
             pagination={false}
-            rowSelection={{
+            rowSelection={canUpdateProduct ? {
               preserveSelectedRowKeys: true,
               selectedRowKeys: selectedProductIds,
               onChange: (keys) => setSelectedProductIds(keys.map(String)),
-            }}
+            } : undefined}
             style={{ background: '#ffffff', borderRadius: 10, overflow: 'hidden' }}
           />
         </div>
@@ -748,15 +784,16 @@ export default function ProductScreen() {
       </div>
 
       {/* ===== MODAL ADD / EDIT ===== */}
-      <ProductModal
-        open={isModalOpen}
-        product={selectedProduct}
-        marketplaceConnections={marketplaceConnections}
-        onCancel={() => dispatch(closeModal())}
-        onSave={handleSaveModal}
-      />
+      {canManageProducts && (
+        <ProductModal
+          open={isModalOpen}
+          product={selectedProduct}
+          onCancel={() => dispatch(closeModal())}
+          onSave={handleSaveModal}
+        />
+      )}
 
-      <Modal
+      {canUpdateProduct && <Modal
         cancelButtonProps={{ disabled: syncing }}
         cancelText="Hủy"
         confirmLoading={syncing}
@@ -797,7 +834,7 @@ export default function ProductScreen() {
             Nếu một sản phẩm hoặc một chiều đồng bộ lỗi, các sản phẩm và chiều còn lại vẫn tiếp tục.
           </div>
         </div>
-      </Modal>
+      </Modal>}
     </div>
   )
 }

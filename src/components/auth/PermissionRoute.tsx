@@ -2,6 +2,7 @@ import { LoadingOutlined } from '@ant-design/icons'
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/authContext'
 import { ROUTES } from '../../routes/paths'
+import { homeRouteForRoles } from '../../routes/access'
 import './auth.css'
 
 type PermissionRouteProps = {
@@ -28,7 +29,7 @@ export default function PermissionRoute({
     return <Navigate replace state={{ from: location.pathname }} to={ROUTES.login} />
   }
   if (!hasPermission(permission)) {
-    return <Navigate replace to={ROUTES.overview} />
+    return <Navigate replace to={homeRouteForRoles(session.roles)} />
   }
   return <>{children}</>
 }

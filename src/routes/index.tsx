@@ -17,7 +17,6 @@ import LandingScreen from '../pages/landing/LandingScreen'
 import OverviewScreen from '../pages/overview/OverviewScreen'
 import ProductScreen from '../pages/products/ProductScreen'
 import WarehouseScreen from '../pages/warehouse/WarehouseScreen'
-import ShippingScreen from '../pages/shipping/ShippingScreen'
 import StaffManagementScreen from '../pages/staff/StaffManagementScreen'
 import { ROUTES } from './paths'
 
@@ -47,27 +46,31 @@ export const router = createBrowserRouter([
     children: [
       {
         path: ROUTES.overview,
-        element: <OverviewScreen />,
+        element: <AdminRoute><OverviewScreen /></AdminRoute>,
       },
       {
         path: ROUTES.connect,
-        element: <ConnectScreen />,
+        element: <AdminRoute><ConnectScreen /></AdminRoute>,
       },
       {
         path: ROUTES.products,
-        element: <ProductScreen />,
+        element: (
+          <PermissionRoute permission="PRODUCT.READ">
+            <ProductScreen />
+          </PermissionRoute>
+        ),
       },
       {
         path: ROUTES.warehouse,
-        element: <WarehouseScreen />,
+        element: <AdminRoute><WarehouseScreen /></AdminRoute>,
       },
       {
         path: ROUTES.orders,
-        element: <MarketplaceConnectionNotice><OrderScreen /></MarketplaceConnectionNotice>,
-      },
-      {
-        path: ROUTES.shipping,
-        element: <MarketplaceConnectionNotice><ShippingScreen /></MarketplaceConnectionNotice>,
+        element: (
+          <PermissionRoute permission="ORDER.READ">
+            <MarketplaceConnectionNotice><OrderScreen /></MarketplaceConnectionNotice>
+          </PermissionRoute>
+        ),
       },
       {
         path: ROUTES.customers,
@@ -75,11 +78,15 @@ export const router = createBrowserRouter([
       },
       {
         path: ROUTES.chat,
-        element: <MarketplaceConnectionNotice><ChatScreen /></MarketplaceConnectionNotice>,
+        element: (
+          <PermissionRoute permission="CHAT.READ">
+            <MarketplaceConnectionNotice><ChatScreen /></MarketplaceConnectionNotice>
+          </PermissionRoute>
+        ),
       },
       {
         path: ROUTES.analytics,
-        element: <AnalystScreen />,
+        element: <AdminRoute><AnalystScreen /></AdminRoute>,
       },
       {
         path: ROUTES.aiContexts,

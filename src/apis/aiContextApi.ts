@@ -2,9 +2,18 @@ import { authErrorMessage, csrfHeader, managementApi } from './authApi'
 import type {
   AiShopContext,
   AiShopContextPayload,
+  AiShopKnowledgeStatus,
 } from '../types/aiContext'
 
 export const aiContextApi = {
+  async knowledgeStatus(shopId: string): Promise<AiShopKnowledgeStatus | null> {
+    const { data } = await managementApi.get<AiShopKnowledgeStatus | null>(
+      '/api/ai-contexts/shop-knowledge/status',
+      { params: { shopId } },
+    )
+    return data
+  },
+
   async list(shopId: string): Promise<AiShopContext[]> {
     const { data } = await managementApi.get<AiShopContext[]>('/api/ai-contexts', {
       params: { shopId },

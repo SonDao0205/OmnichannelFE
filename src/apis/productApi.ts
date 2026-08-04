@@ -8,6 +8,8 @@ interface BackendVariant {
   id: string
   sku: string
   variantName: string
+  color?: string | null
+  size?: string | null
   price: number
   stockQuantity: number
 }
@@ -51,6 +53,8 @@ function mapVariant(v: BackendVariant): ProductVariant {
     id: v.id,
     name: v.variantName || v.sku,
     sku: v.sku,
+    color: v.color || '',
+    size: v.size || '',
     price: v.price,
     costPrice: 0,
     stock: v.stockQuantity,
@@ -134,10 +138,11 @@ export const productApi = {
       variants: (productData.variants ?? []).map((v) => ({
         sku: v.sku,
         variantName: v.name,
+        color: v.color || null,
+        size: v.size || null,
         price: v.price,
         stockQuantity: v.stock,
       })),
-      marketplaceAccountIds: productData.marketplaceAccountIds ?? [],
     }
     const res = await managementApi.post<BackendProduct>('/api/v1/products', body)
     return mapProduct(res.data)
@@ -159,10 +164,11 @@ export const productApi = {
       variants: (productData.variants ?? []).map((v) => ({
         sku: v.sku,
         variantName: v.name,
+        color: v.color || null,
+        size: v.size || null,
         price: v.price,
         stockQuantity: v.stock,
       })),
-      marketplaceAccountIds: productData.marketplaceAccountIds ?? [],
     }
     const res = await managementApi.put<BackendProduct>(`/api/v1/products/${id}`, body)
     return mapProduct(res.data)
@@ -174,7 +180,12 @@ export const productApi = {
     const res = await managementApi.post<ProductMedia[]>(
       `/api/v1/products/${productId}/media`,
       formData,
-      { timeout: 120_000 },
+      // Cloudinary có thể mất hơn hai phút với nhiều file. Chỉ kết thúc request
+      // khi backend đã tải xong toàn bộ media hoặc trả về lỗi thực sự.
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 0,
+      },
     )
     return res.data
   },

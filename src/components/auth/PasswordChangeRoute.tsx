@@ -2,6 +2,7 @@ import { LoadingOutlined } from '@ant-design/icons'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/authContext'
 import { ROUTES } from '../../routes/paths'
+import { homeRouteForRoles } from '../../routes/access'
 import './auth.css'
 
 type PasswordChangeRouteProps = {
@@ -27,7 +28,7 @@ export default function PasswordChangeRoute({
   }
 
   if (!session.mustChangePassword) {
-    return <Navigate replace to={ROUTES.overview} />
+    return <Navigate replace to={homeRouteForRoles(session.roles)} />
   }
 
   return children

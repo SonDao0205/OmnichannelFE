@@ -40,3 +40,19 @@ export type AiShopContextPayload = {
   maxResponseCharacters: number
   defaultKnowledgeBaseId: string | null
 }
+
+export type AiShopKnowledgeStatus = {
+  marketplaceAccountId: string
+  status: 'BUILDING' | 'READY' | 'DEGRADED' | 'FAILED'
+  catalogVersion: string | null
+  productCount: number
+  variantCount: number
+  missingColorCount: number
+  missingSizeCount: number
+  indexedPoints: number
+  cacheStatus: string
+  vectorStatus: string
+  lastBuiltAt: string | null
+  lastIndexedAt: string | null
+  lastError: string | null
+}

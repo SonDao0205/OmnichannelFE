@@ -5,7 +5,6 @@ import {
   PhoneOutlined,
   EnvironmentOutlined,
   CheckCircleOutlined,
-  CloseCircleOutlined,
   CarOutlined,
 } from '@ant-design/icons'
 import type { Order, OrderStatus } from '../../types/order'
@@ -13,12 +12,13 @@ import { useAppDispatch } from '../../hooks/redux'
 import { updateOrderStatusThunk } from '../../stores/slices/orderSlice'
 
 interface OrderDetailModalProps {
+  canUpdateStatus: boolean
   open: boolean
   order: Order | null
   onClose: () => void
 }
 
-export default function OrderDetailModal({ open, order, onClose }: OrderDetailModalProps) {
+export default function OrderDetailModal({ canUpdateStatus, open, order, onClose }: OrderDetailModalProps) {
   const dispatch = useAppDispatch()
 
   if (!order) return null
@@ -97,46 +97,26 @@ export default function OrderDetailModal({ open, order, onClose }: OrderDetailMo
           <span style={{ color: '#2563eb', fontSize: 18 }}>{formatVND(order.finalAmount)}</span>
         </div>
 
-        <Divider style={{ margin: '16px 0' }} />
+        {canUpdateStatus && (
+          <>
+            <Divider style={{ margin: '16px 0' }} />
 
-        {/* Actions based on current status */}
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-          {order.status === 'CREATED' && (
-            <Button type="primary" icon={<CheckCircleOutlined />} onClick={() => handleStatusChange('CONFIRMED')}>
-              Xác nhận đơn hàng
-            </Button>
-          )}
+            {/* Actions based on current status */}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              {order.status === 'CREATED' && (
+                <Button type="primary" icon={<CheckCircleOutlined />} onClick={() => handleStatusChange('CONFIRMED')}>
+                  Xác nhận đơn hàng
+                </Button>
+              )}
 
-          {order.status === 'CONFIRMED' && (
-            <Button type="primary" style={{ background: '#1d4ed8' }} icon={<CarOutlined />} onClick={() => handleStatusChange('READY_TO_SHIP')}>
-              Sẵn sàng giao hàng
-            </Button>
-          )}
-
-          {order.status === 'READY_TO_SHIP' && (
-            <Button type="primary" style={{ background: '#1d4ed8' }} icon={<CarOutlined />} onClick={() => handleStatusChange('SHIPPED')}>
-              Đã bàn giao vận chuyển
-            </Button>
-          )}
-
-          {order.status === 'SHIPPED' && (
-            <Button type="primary" style={{ background: '#1d4ed8' }} icon={<CarOutlined />} onClick={() => handleStatusChange('IN_TRANSIT')}>
-              Đang vận chuyển
-            </Button>
-          )}
-
-          {order.status === 'IN_TRANSIT' && (
-            <Button type="primary" style={{ background: '#059669' }} icon={<CheckCircleOutlined />} onClick={() => handleStatusChange('DELIVERED')}>
-              Xác nhận Giao thành công
-            </Button>
-          )}
-
-          {(['CREATED', 'CONFIRMED', 'READY_TO_SHIP'] as OrderStatus[]).includes(order.status) && (
-            <Button danger icon={<CloseCircleOutlined />} onClick={() => handleStatusChange('CANCELLED')}>
-              Hủy đơn hàng
-            </Button>
-          )}
-        </div>
+              {order.status === 'CONFIRMED' && (
+                <Button type="primary" style={{ background: '#1d4ed8' }} icon={<CarOutlined />} onClick={() => handleStatusChange('READY_TO_SHIP')}>
+                  Sẵn sàng bàn giao
+                </Button>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </Modal>
   )
