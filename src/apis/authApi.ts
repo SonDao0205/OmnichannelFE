@@ -84,7 +84,7 @@ export const authApi = {
   },
 }
 
-export function authErrorMessage(error: unknown): string {
+export function apiErrorMessage(error: unknown): string {
   if (error instanceof AxiosError) {
     const problem = error.response?.data as ApiProblem | undefined
     if (problem?.detail) {
@@ -99,6 +99,8 @@ export function authErrorMessage(error: unknown): string {
   }
   return 'Đã có lỗi xảy ra. Vui lòng thử lại.'
 }
+
+export const authErrorMessage = apiErrorMessage
 
 export function authFieldErrors(
   error: unknown,

@@ -23,9 +23,13 @@ export default function OrderDetailModal({ open, order, onClose }: OrderDetailMo
 
   if (!order) return null
 
-  const handleStatusChange = (newStatus: OrderStatus) => {
-    dispatch(updateOrderStatusThunk({ orderId: order.id, status: newStatus }))
-    message.success(`Đã chuyển trạng thái đơn hàng sang: ${newStatus}`)
+  const handleStatusChange = async (newStatus: OrderStatus) => {
+    try {
+      await dispatch(updateOrderStatusThunk({ orderId: order.id, status: newStatus })).unwrap()
+      message.success(`Đã chuyển trạng thái đơn hàng sang: ${newStatus}`)
+    } catch (error) {
+      if (typeof error === 'string') message.error(error)
+    }
   }
 
   const formatVND = (num: number) => `${num.toLocaleString('vi-VN')}đ`
@@ -97,15 +101,27 @@ export default function OrderDetailModal({ open, order, onClose }: OrderDetailMo
 
         {/* Actions based on current status */}
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-          {order.status === 'PENDING' && (
-            <Button type="primary" icon={<CheckCircleOutlined />} onClick={() => handleStatusChange('PACKED')}>
-              Xác nhận & Đóng gói (Pack)
+          {order.status === 'CREATED' && (
+            <Button type="primary" icon={<CheckCircleOutlined />} onClick={() => handleStatusChange('CONFIRMED')}>
+              Xác nhận đơn hàng
             </Button>
           )}
 
-          {order.status === 'PACKED' && (
+          {order.status === 'CONFIRMED' && (
+            <Button type="primary" style={{ background: '#1d4ed8' }} icon={<CarOutlined />} onClick={() => handleStatusChange('READY_TO_SHIP')}>
+              Sẵn sàng giao hàng
+            </Button>
+          )}
+
+          {order.status === 'READY_TO_SHIP' && (
+            <Button type="primary" style={{ background: '#1d4ed8' }} icon={<CarOutlined />} onClick={() => handleStatusChange('SHIPPED')}>
+              Đã bàn giao vận chuyển
+            </Button>
+          )}
+
+          {order.status === 'SHIPPED' && (
             <Button type="primary" style={{ background: '#1d4ed8' }} icon={<CarOutlined />} onClick={() => handleStatusChange('IN_TRANSIT')}>
-              Gửi hàng vận chuyển (RTS)
+              Đang vận chuyển
             </Button>
           )}
 
@@ -115,7 +131,7 @@ export default function OrderDetailModal({ open, order, onClose }: OrderDetailMo
             </Button>
           )}
 
-          {order.status !== 'CANCELLED' && order.status !== 'DELIVERED' && (
+          {(['CREATED', 'CONFIRMED', 'READY_TO_SHIP'] as OrderStatus[]).includes(order.status) && (
             <Button danger icon={<CloseCircleOutlined />} onClick={() => handleStatusChange('CANCELLED')}>
               Hủy đơn hàng
             </Button>

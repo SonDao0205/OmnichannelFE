@@ -16,7 +16,6 @@ export type CreateStaffPayload = {
   email: string
   displayName: string
   phoneNumber?: string
-  password?: string
 }
 
 export type UpdateStaffPayload = {
@@ -83,14 +82,14 @@ export const staffApi = {
 }
 
 export function staffErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message
-  }
   if (error instanceof AxiosError) {
     const problem = error.response?.data as ApiProblem | undefined
     if (problem?.detail) {
       return problem.detail
     }
+  }
+  if (error instanceof Error) {
+    return error.message
   }
   return 'Đã có lỗi xảy ra khi thao tác với dữ liệu nhân viên.'
 }

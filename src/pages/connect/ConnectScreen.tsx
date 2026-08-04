@@ -126,6 +126,10 @@ export default function ConnectScreen() {
     return grouped
   }, [connections])
 
+  const connectedCount = connections.filter(
+    (connection) => connection.status === 'CONNECTED',
+  ).length
+
   const authorize = async (marketplace: MarketplaceCode) => {
     setWorkingKey(`authorize:${marketplace}`)
     try {
@@ -163,6 +167,54 @@ export default function ConnectScreen() {
         current.map((item) => (item.id === updated.id ? updated : item)),
       )
       toast.success('Đã làm mới access token của sàn.')
+    } catch (error) {
+      toast.error(marketplaceErrorMessage(error))
+    } finally {
+      setWorkingKey(null)
+    }
+  }
+
+  const sync = async (connection: MarketplaceConnection) => {
+    setWorkingKey(`sync:${connection.id}`)
+    try {
+      const result = await marketplaceApi.syncAccount(connection.id)
+      const archived = result.archivedProducts + result.archivedVariants
+      toast.success(
+        `Đã đồng bộ ${result.products} sản phẩm, ${result.variants} SKU và ${result.orders} đơn hàng từ ${connection.shopName}.`,
+      )
+      if (archived > 0) {
+        toast.info(`Đã ngừng hiển thị ${archived} sản phẩm/SKU không còn trên sàn.`)
+      }
+      if (result.failures > 0) {
+        toast.warning('Shop chưa đồng bộ được. Hãy kiểm tra token hoặc trạng thái sàn.')
+      }
+    } catch (error) {
+      toast.error(marketplaceErrorMessage(error))
+    } finally {
+      setWorkingKey(null)
+    }
+  }
+
+  const syncAll = async () => {
+    setWorkingKey('sync:all')
+    try {
+      const result = await marketplaceApi.syncAll()
+      const succeeded = result.shopResults.filter(
+        (shop) => shop.status === 'SUCCEEDED',
+      )
+      const unsuccessful = result.shopResults.filter(
+        (shop) =>
+          shop.status !== 'SUCCEEDED' &&
+          shop.errorCode !== 'ACCOUNT_NOT_CONNECTED',
+      )
+      toast.success(
+        `Đã đồng bộ ${succeeded.length}/${connectedCount} shop: ${result.products} sản phẩm, ${result.variants} SKU và ${result.orders} đơn hàng.`,
+      )
+      if (unsuccessful.length > 0) {
+        toast.warning(
+          `Chưa đồng bộ được: ${unsuccessful.map((shop) => shop.shopName).join(', ')}. Các shop còn lại vẫn được xử lý bình thường.`,
+        )
+      }
     } catch (error) {
       toast.error(marketplaceErrorMessage(error))
     } finally {
@@ -208,12 +260,23 @@ export default function ConnectScreen() {
             liệu theo phạm vi được cấp.
           </p>
         </div>
-        <div className="connect-security-note">
-          <SafetyCertificateOutlined />
-          <span>
-            Token sàn được mã hóa và chỉ lưu tại backend
-            <small>Frontend không nhận access token của TikTok hay Lazada</small>
-          </span>
+        <div className="connect-header-actions">
+          <button
+            type="button"
+            className="connect-sync-all-button"
+            onClick={() => void syncAll()}
+            disabled={connectedCount === 0 || workingKey !== null}
+          >
+            <SyncOutlined spin={workingKey === 'sync:all'} />
+            Đồng bộ tất cả shop ({connectedCount})
+          </button>
+          <div className="connect-security-note">
+            <SafetyCertificateOutlined />
+            <span>
+              Token sàn được mã hóa và chỉ lưu tại backend
+              <small>Frontend không nhận access token của TikTok hay Lazada</small>
+            </span>
+          </div>
         </div>
       </header>
 
@@ -234,9 +297,7 @@ export default function ConnectScreen() {
           <span>
             <strong>
               {
-                connections.filter(
-                  (connection) => connection.status === 'CONNECTED',
-                ).length
+                connectedCount
               }
             </strong>
             <small>Kết nối hoạt động</small>
@@ -321,10 +382,23 @@ export default function ConnectScreen() {
                       <div className="shop-actions">
                         <button
                           type="button"
+                          onClick={() => void sync(connection)}
+                          disabled={
+                            connection.status !== 'CONNECTED' ||
+                            workingKey !== null
+                          }
+                        >
+                          <SyncOutlined
+                            spin={workingKey === `sync:${connection.id}`}
+                          />
+                          Đồng bộ dữ liệu
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => void verify(connection)}
                           disabled={
                             !canConnect ||
-                            workingKey === `verify:${connection.id}`
+                            workingKey !== null
                           }
                         >
                           <SyncOutlined
@@ -337,7 +411,7 @@ export default function ConnectScreen() {
                           onClick={() => void refresh(connection)}
                           disabled={
                             !canConnect ||
-                            workingKey === `refresh:${connection.id}`
+                            workingKey !== null
                           }
                         >
                           <ReloadOutlined
@@ -351,7 +425,7 @@ export default function ConnectScreen() {
                           onClick={() => void disconnect(connection)}
                           disabled={
                             !canDisconnect ||
-                            workingKey === `disconnect:${connection.id}`
+                            workingKey !== null
                           }
                         >
                           <DisconnectOutlined />
@@ -367,7 +441,7 @@ export default function ConnectScreen() {
                 type="button"
                 className="connect-marketplace-button"
                 onClick={() => void authorize(marketplace.code)}
-                disabled={!canConnect || isAuthorizing}
+                disabled={!canConnect || workingKey !== null}
                 title={
                   canConnect
                     ? undefined
