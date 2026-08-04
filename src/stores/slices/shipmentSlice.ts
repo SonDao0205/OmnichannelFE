@@ -1,5 +1,6 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 import { shipmentApi, type ShipmentItem, type ShipmentOverview } from '../../apis/shipmentApi'
+import { apiErrorMessage } from '../../apis/authApi'
 
 interface ShipmentState {
   items: ShipmentItem[]
@@ -21,22 +22,34 @@ const initialState: ShipmentState = {
 
 export const fetchShipmentsThunk = createAsyncThunk(
   'shipments/fetch',
-  async ({ search = '', page = 0 }: { search?: string; page?: number } = {}) => {
-    return await shipmentApi.fetchShipments(search, page)
+  async ({ search = '', page = 0 }: { search?: string; page?: number } = {}, { rejectWithValue }) => {
+    try {
+      return await shipmentApi.fetchShipments(search, page)
+    } catch (error) {
+      return rejectWithValue(apiErrorMessage(error))
+    }
   }
 )
 
 export const fetchShipmentOverviewThunk = createAsyncThunk(
   'shipments/overview',
-  async () => {
-    return await shipmentApi.fetchOverview()
+  async (_, { rejectWithValue }) => {
+    try {
+      return await shipmentApi.fetchOverview()
+    } catch (error) {
+      return rejectWithValue(apiErrorMessage(error))
+    }
   }
 )
 
 export const trackShipmentThunk = createAsyncThunk(
   'shipments/track',
-  async (code: string) => {
-    return await shipmentApi.trackShipment(code)
+  async (code: string, { rejectWithValue }) => {
+    try {
+      return await shipmentApi.trackShipment(code)
+    } catch (error) {
+      return rejectWithValue(apiErrorMessage(error))
+    }
   }
 )
 
@@ -60,7 +73,8 @@ export const shipmentSlice = createSlice({
       })
       .addCase(fetchShipmentsThunk.rejected, (state, action) => {
         state.loading = false
-        state.error = action.error.message || 'Lỗi tải danh sách vận đơn'
+        state.error = typeof action.payload === 'string'
+          ? action.payload : 'Lỗi tải danh sách vận đơn'
       })
       .addCase(fetchShipmentOverviewThunk.pending, (state) => {
         state.overviewLoading = true
@@ -69,11 +83,24 @@ export const shipmentSlice = createSlice({
         state.overviewLoading = false
         state.overview = action.payload
       })
-      .addCase(fetchShipmentOverviewThunk.rejected, (state) => {
+      .addCase(fetchShipmentOverviewThunk.rejected, (state, action) => {
         state.overviewLoading = false
+        state.error = typeof action.payload === 'string'
+          ? action.payload : 'Không thể tải tổng quan vận chuyển'
+      })
+      .addCase(trackShipmentThunk.pending, (state) => {
+        state.loading = true
+        state.error = null
+        state.trackedShipment = null
       })
       .addCase(trackShipmentThunk.fulfilled, (state, action) => {
+        state.loading = false
         state.trackedShipment = action.payload
+      })
+      .addCase(trackShipmentThunk.rejected, (state, action) => {
+        state.loading = false
+        state.error = typeof action.payload === 'string'
+          ? action.payload : 'Không tìm thấy vận đơn'
       })
   },
 })

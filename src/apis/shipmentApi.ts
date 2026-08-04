@@ -6,6 +6,7 @@ export interface ShipmentItem {
   id: string
   tenantId: string
   orderId: string | null
+  orderCode: string
   waybillCode: string
   carrierName: string
   destination: string
@@ -15,6 +16,7 @@ export interface ShipmentItem {
   shippedAt: string | null
   deliveredAt: string | null
   createdAt: string
+  updatedAt: string
 }
 
 export interface ShipmentOverview {
@@ -35,53 +37,27 @@ interface SpringPage<T> {
   totalPages: number
 }
 
-// ─── Mock dự phòng ───────────────────────────────────────────────────────────
-
-const MOCK_OVERVIEW: ShipmentOverview = {
-  countWaiting: 12,
-  countPicked: 8,
-  countInTransit: 142,
-  countFailed: 2,
-  countSuccess: 1105,
-  ghtkAvgHours: 22.5,
-  ghnAvgHours: 28.0,
-  ghtkSuccessRate: 98.2,
-  ghnSuccessRate: 95.4,
-}
-
 // ─── API calls ───────────────────────────────────────────────────────────────
 
 export const shipmentApi = {
   /** Lấy danh sách vận đơn */
   fetchShipments: async (search = '', page = 0, size = 20): Promise<ShipmentItem[]> => {
-    try {
-      const params: Record<string, string | number> = { page, size }
-      if (search) params.search = search
-      const res = await managementApi.get<SpringPage<ShipmentItem>>('/api/v1/shipments', { params })
-      const data = res.data
-      return Array.isArray(data) ? data : (data?.content ?? [])
-    } catch {
-      return []
-    }
+    const params: Record<string, string | number> = { page, size }
+    if (search) params.search = search
+    const res = await managementApi.get<SpringPage<ShipmentItem>>('/api/v1/shipments', { params })
+    const data = res.data
+    return Array.isArray(data) ? data : (data?.content ?? [])
   },
 
   /** Tra cứu vận đơn theo mã vận đơn hoặc mã đơn hàng gốc */
-  trackShipment: async (code: string): Promise<ShipmentItem | null> => {
-    try {
-      const res = await managementApi.get<ShipmentItem>(`/api/v1/shipments/track/${code}`)
-      return res.data
-    } catch {
-      return null
-    }
+  trackShipment: async (code: string): Promise<ShipmentItem> => {
+    const res = await managementApi.get<ShipmentItem>(`/api/v1/shipments/track/${encodeURIComponent(code.trim())}`)
+    return res.data
   },
 
   /** Lấy tổng quan thống kê vận chuyển */
   fetchOverview: async (): Promise<ShipmentOverview> => {
-    try {
-      const res = await managementApi.get<ShipmentOverview>('/api/v1/shipments/overview')
-      return res.data
-    } catch {
-      return MOCK_OVERVIEW
-    }
+    const res = await managementApi.get<ShipmentOverview>('/api/v1/shipments/overview')
+    return res.data
   },
 }

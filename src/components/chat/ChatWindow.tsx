@@ -14,10 +14,12 @@ import type {
   ChatConversationDetail,
   ChatMessage,
 } from '../../apis/chatApi'
+import type { AiRun } from '../../apis/aiConversationApi'
+import AiSuggestionPanel from './AiSuggestionPanel'
 import Avatar from './Avatar'
 import ProductPreviewCard from './ProductPreviewCard'
 
-type ResponderMode = 'ai-autopilot' | 'human' | 'ai-recommend'
+export type ResponderMode = 'ai-autopilot' | 'human' | 'ai-recommend'
 
 type ChatWindowProps = {
   conversation: ChatConversation | null
@@ -26,8 +28,21 @@ type ChatWindowProps = {
   isLoading: boolean
   isSending: boolean
   messages: ChatMessage[]
+  aiRun: AiRun | null
+  aiErrorMessage: string | null
+  isAiBusy: boolean
+  canSuggest: boolean
+  canApprove: boolean
   responderMode: ResponderMode
-  onResponderModeChange: (mode: ResponderMode) => void
+  onResponderModeChange: (mode: ResponderMode) => Promise<void>
+  onGenerateAiSuggestion: () => Promise<void>
+  onApproveAiRun: (text: string, send: boolean) => Promise<void>
+  onRejectAiRun: (reason: string) => Promise<void>
+  onAiFeedback: (
+    rating: number,
+    feedbackType: 'GOOD' | 'INCORRECT',
+    correctedText: string,
+  ) => Promise<void>
   onSendMessage: (text: string) => Promise<boolean>
 }
 
@@ -63,8 +78,17 @@ export default function ChatWindow({
   isLoading,
   isSending,
   messages,
+  aiRun,
+  aiErrorMessage,
+  isAiBusy,
+  canSuggest,
+  canApprove,
   responderMode,
   onResponderModeChange,
+  onGenerateAiSuggestion,
+  onApproveAiRun,
+  onRejectAiRun,
+  onAiFeedback,
   onSendMessage,
 }: ChatWindowProps) {
   const [draft, setDraft] = useState('')
@@ -182,6 +206,22 @@ export default function ChatWindow({
       </section>
 
       <footer className="chat-composer">
+        {conversation ? (
+          <AiSuggestionPanel
+            key={aiRun?.id ?? 'no-ai-run'}
+            canApprove={canApprove}
+            canSuggest={canSuggest}
+            errorMessage={aiErrorMessage}
+            isAiEnabled={responderMode !== 'human'}
+            isBusy={isAiBusy}
+            onApprove={onApproveAiRun}
+            onFeedback={onAiFeedback}
+            onGenerate={onGenerateAiSuggestion}
+            onReject={onRejectAiRun}
+            onUseSuggestion={setDraft}
+            run={aiRun}
+          />
+        ) : null}
         <div className="chat-compose-actions">
           <button type="button" aria-label="Đính kèm">
             <PaperClipOutlined />
@@ -202,8 +242,9 @@ export default function ChatWindow({
                 <span>Responder</span>
                 <select
                   onChange={(event) => {
-                    onResponderModeChange(event.target.value as ResponderMode)
+                    void onResponderModeChange(event.target.value as ResponderMode)
                   }}
+                  disabled={!conversation || !canSuggest || isAiBusy}
                   value={responderMode}
                 >
                   <option value="ai-autopilot">AI Autopilot Responder</option>

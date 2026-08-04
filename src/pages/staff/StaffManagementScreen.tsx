@@ -1,7 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import {
   CloseOutlined,
-  CopyOutlined,
   DeleteOutlined,
   EditOutlined,
   KeyOutlined,
@@ -29,32 +28,6 @@ const statusTabs = [
   { value: 'ACTIVE' as const, label: 'Đang hoạt động' },
   { value: 'LOCKED' as const, label: 'Đã khóa' },
 ]
-
-function generateSecurePassword(): string {
-  const lowercase = 'abcdefghijklmnopqrstuvwxyz'
-  const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-  const numbers = '0123456789'
-  const specials = '!@#$%^&*()_+~`|}{[]:;?><,./-='
-
-  const getRandomChar = (pool: string) => pool.charAt(Math.floor(Math.random() * pool.length))
-
-  // Guarantee at least one of each character category
-  const passwordArr = [
-    getRandomChar(lowercase),
-    getRandomChar(uppercase),
-    getRandomChar(numbers),
-    getRandomChar(specials)
-  ]
-
-  // Add 10 more random characters from a mixed pool
-  const allChars = lowercase + uppercase + numbers + specials
-  for (let i = 0; i < 10; i++) {
-    passwordArr.push(getRandomChar(allChars))
-  }
-
-  // Shuffle the array to avoid predictable positions
-  return passwordArr.sort(() => Math.random() - 0.5).join('')
-}
 
 function formatDate(value: string | null) {
   if (!value) return '—'
@@ -95,7 +68,6 @@ export default function StaffManagementScreen() {
     email: string
     displayName: string
     phoneNumber?: string
-    password: string
   } | null>(null)
 
   // Selected staff for edit/password actions
@@ -180,22 +152,19 @@ export default function StaffManagementScreen() {
     }
 
     setCreateErrors({})
-    const generatedPassword = generateSecurePassword()
     try {
       setLoading(true)
-      await staffApi.createStaff({
+      const createdStaff = await staffApi.createStaff({
         email: createValues.email.trim(),
         displayName: createValues.displayName.trim(),
         phoneNumber: createValues.phoneNumber?.trim() || undefined,
-        password: generatedPassword,
       })
-      toast.success('Cấp tài khoản nhân viên mới thành công!')
+      toast.success('Cấp tài khoản thành công, mật khẩu đã được gửi qua email!')
       setCreateModalVisible(true) // keep open to display details
       setCreatedStaffDetails({
-        email: createValues.email.trim(),
-        displayName: createValues.displayName.trim(),
-        phoneNumber: createValues.phoneNumber?.trim() || undefined,
-        password: generatedPassword,
+        email: createdStaff.email,
+        displayName: createdStaff.displayName,
+        phoneNumber: createdStaff.phoneNumber,
       })
       await fetchStaff()
     } catch (error) {
@@ -685,7 +654,7 @@ export default function StaffManagementScreen() {
                 <div className="created-staff-banner">
                   <div>
                     <strong>Tài khoản đã được cấp thành công!</strong>
-                    <p>Nhân viên có thể đăng nhập bằng email và mật khẩu tạm thời.</p>
+                    <p>Mật khẩu tạm thời đã được gửi tới email đăng nhập.</p>
                   </div>
                 </div>
                 <dl>
@@ -703,44 +672,12 @@ export default function StaffManagementScreen() {
                       <dd>{createdStaffDetails.phoneNumber}</dd>
                     </div>
                   )}
-                  <div>
-                    <dt>Mật khẩu tạm thời</dt>
-                    <dd className="temporary-password">
-                      <code>{createdStaffDetails.password}</code>
-                      <button
-                        onClick={async () => {
-                          await navigator.clipboard.writeText(createdStaffDetails.password)
-                          toast.success('Đã sao chép mật khẩu!')
-                        }}
-                        type="button"
-                      >
-                        <CopyOutlined /> Sao chép
-                      </button>
-                    </dd>
-                  </div>
                 </dl>
                 <div className="created-staff-result-warning-box">
-                  <span>⚠️</span>
-                  <span><strong>Chú ý:</strong> Đây là mật khẩu sử dụng một lần. Hệ thống sẽ bắt buộc nhân viên đổi mật khẩu mới trong lần đăng nhập đầu tiên.</span>
+                  <span>✉️</span>
+                  <span><strong>Đã gửi email:</strong> Nhân viên dùng mật khẩu tạm thời trong thư và phải đổi mật khẩu ở lần đăng nhập đầu tiên.</span>
                 </div>
                 <div className="staff-form-actions">
-                  <button
-                    className="staff-ghost-button"
-                    onClick={() => {
-                      const fullInfo = `Thông tin tài khoản CSKH Omnichannel:
-- Họ và tên: ${createdStaffDetails.displayName}
-- Email đăng nhập: ${createdStaffDetails.email}
-${createdStaffDetails.phoneNumber ? `- Số điện thoại: ${createdStaffDetails.phoneNumber}\n` : ''}- Mật khẩu tạm thời: ${createdStaffDetails.password}
-
-(Lưu ý: Nhân viên cần đổi mật khẩu trong lần đăng nhập đầu tiên)`
-                      navigator.clipboard.writeText(fullInfo)
-                        .then(() => toast.success('Đã sao chép toàn bộ thông tin!'))
-                        .catch(() => toast.error('Không thể sao chép thông tin.'))
-                    }}
-                    type="button"
-                  >
-                    <CopyOutlined /> Sao chép toàn bộ
-                  </button>
                   <button
                     className="staff-primary-button"
                     onClick={() => {

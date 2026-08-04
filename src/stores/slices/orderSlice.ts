@@ -1,5 +1,6 @@
 import { createAsyncThunk, createSlice, type PayloadAction } from '@reduxjs/toolkit'
-import { orderApi, type CreateOrderPayload } from '../../apis/orderApi'
+import { orderApi } from '../../apis/orderApi'
+import { apiErrorMessage } from '../../apis/authApi'
 import type { Order, OrderFilter, OrderStatus } from '../../types/order'
 
 interface OrderState {
@@ -10,7 +11,6 @@ interface OrderState {
   filter: OrderFilter
   selectedOrder: Order | null
   isDetailOpen: boolean
-  isCreateOpen: boolean
 }
 
 const initialState: OrderState = {
@@ -27,37 +27,30 @@ const initialState: OrderState = {
   },
   selectedOrder: null,
   isDetailOpen: false,
-  isCreateOpen: false,
 }
 
 export const fetchOrdersThunk = createAsyncThunk(
   'orders/fetch',
-  async (_, { getState }: any) => {
-    const state = getState() as { orders: OrderState }
-    const { filter } = state.orders
-    const status = filter.statusTab === 'ALL' ? '' : filter.statusTab
-    return await orderApi.fetchOrders(filter.search, status, filter.page - 1, filter.pageSize)
-  }
-)
-
-export const createOrderThunk = createAsyncThunk(
-  'orders/create',
-  async (payload: CreateOrderPayload) => {
-    return await orderApi.createOrder(payload)
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const state = getState() as { orders: OrderState }
+      const { filter } = state.orders
+      const status = filter.statusTab === 'ALL' ? '' : filter.statusTab
+      return await orderApi.fetchOrders(filter.search, status, filter.page - 1, filter.pageSize)
+    } catch (error) {
+      return rejectWithValue(apiErrorMessage(error))
+    }
   }
 )
 
 export const updateOrderStatusThunk = createAsyncThunk(
   'orders/updateStatus',
-  async ({ orderId, status }: { orderId: string; status: OrderStatus }) => {
-    return await orderApi.updateOrderStatus(orderId, status)
-  }
-)
-
-export const deleteOrderThunk = createAsyncThunk(
-  'orders/delete',
-  async (orderId: string) => {
-    return await orderApi.deleteOrder(orderId)
+  async ({ orderId, status }: { orderId: string; status: OrderStatus }, { rejectWithValue }) => {
+    try {
+      return await orderApi.updateOrderStatus(orderId, status)
+    } catch (error) {
+      return rejectWithValue(apiErrorMessage(error))
+    }
   }
 )
 
@@ -88,12 +81,6 @@ export const orderSlice = createSlice({
       state.selectedOrder = null
       state.isDetailOpen = false
     },
-    openCreateOrder: (state) => {
-      state.isCreateOpen = true
-    },
-    closeCreateOrder: (state) => {
-      state.isCreateOpen = false
-    },
   },
   extraReducers: (builder) => {
     builder
@@ -108,20 +95,21 @@ export const orderSlice = createSlice({
       })
       .addCase(fetchOrdersThunk.rejected, (state, action) => {
         state.loading = false
-        state.error = action.error.message || 'Lỗi tải danh sách đơn hàng'
+        state.error = typeof action.payload === 'string'
+          ? action.payload : 'Lỗi tải danh sách đơn hàng'
       })
-      .addCase(createOrderThunk.fulfilled, (state, action) => {
-        state.items.unshift(action.payload)
-        state.isCreateOpen = false
+      .addCase(updateOrderStatusThunk.pending, (state) => {
+        state.error = null
       })
       .addCase(updateOrderStatusThunk.fulfilled, (state, action) => {
         const updated = action.payload
-        const idx = state.items.findIndex((o) => o.id === updated.id)
+        const idx = state.items.findIndex((order) => order.id === updated.id)
         if (idx !== -1) state.items[idx] = updated
         if (state.selectedOrder?.id === updated.id) state.selectedOrder = updated
       })
-      .addCase(deleteOrderThunk.fulfilled, (state, action) => {
-        state.items = state.items.filter((o) => o.id !== action.payload)
+      .addCase(updateOrderStatusThunk.rejected, (state, action) => {
+        state.error = typeof action.payload === 'string'
+          ? action.payload : 'Không thể cập nhật trạng thái đơn hàng'
       })
   },
 })
@@ -133,8 +121,6 @@ export const {
   setOrderPage,
   openOrderDetail,
   closeOrderDetail,
-  openCreateOrder,
-  closeCreateOrder,
 } = orderSlice.actions
 
 export default orderSlice.reducer

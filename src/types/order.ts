@@ -1,12 +1,16 @@
 export type OrderMarketplace = 'Shopee' | 'Lazada' | 'TikTok Shop'
 
 export type OrderStatus =
-  | 'PENDING'
-  | 'PACKED'
+  | 'CREATED'
+  | 'CONFIRMED'
+  | 'READY_TO_SHIP'
+  | 'SHIPPED'
   | 'IN_TRANSIT'
   | 'DELIVERED'
   | 'CANCELLED'
+  | 'RETURN_REQUESTED'
   | 'RETURNED'
+  | 'FAILED'
 
 export interface OrderItem {
   id: string

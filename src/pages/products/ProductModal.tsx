@@ -1,133 +1,389 @@
-import { useEffect } from 'react'
-import { Modal, Form, Input, InputNumber, Select, Checkbox, Row, Col } from 'antd'
-import type { Product, MarketplaceType } from '../../types/product'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  ArrowDownOutlined,
+  ArrowUpOutlined,
+  DeleteOutlined,
+  PlusOutlined,
+  StarFilled,
+  StarOutlined,
+  UploadOutlined,
+} from '@ant-design/icons'
+import { Button, Col, Form, Input, InputNumber, message, Modal, Row, Select } from 'antd'
+import type { Product, ProductMedia } from '../../types/product'
+import type { MarketplaceConnection } from '../../types/marketplace'
+
+export type ProductMediaDraft = {
+  key: string
+  existingId?: string
+  file?: File
+  previewUrl: string
+  mediaType: 'IMAGE' | 'VIDEO'
+  primary: boolean
+}
+
+export type ProductFormSubmission = Partial<Product> & {
+  mediaDrafts: ProductMediaDraft[]
+}
 
 interface ProductModalProps {
   open: boolean
   product: Product | null
   onCancel: () => void
-  onSave: (values: Partial<Product>) => void
+  onSave: (values: ProductFormSubmission) => Promise<void>
+  marketplaceConnections: MarketplaceConnection[]
 }
 
-export default function ProductModal({ open, product, onCancel, onSave }: ProductModalProps) {
+function existingDraft(media: ProductMedia): ProductMediaDraft {
+  return {
+    key: media.id,
+    existingId: media.id,
+    previewUrl: media.publicUrl,
+    mediaType: media.mediaType,
+    primary: media.primary,
+  }
+}
+
+export default function ProductModal({
+  open,
+  product,
+  onCancel,
+  onSave,
+  marketplaceConnections,
+}: ProductModalProps) {
   const [form] = Form.useForm()
+  const [submitting, setSubmitting] = useState(false)
+  const [mediaDrafts, setMediaDrafts] = useState<ProductMediaDraft[]>([])
+  const mediaDraftsRef = useRef<ProductMediaDraft[]>([])
 
   useEffect(() => {
+    mediaDraftsRef.current = mediaDrafts
+  }, [mediaDrafts])
+
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
     if (product) {
       form.setFieldsValue({
         code: product.code,
         name: product.name,
         category: product.category,
-        imageUrl: product.imageUrl,
-        price: product.price,
+        description: product.description,
         costPrice: product.costPrice,
-        totalStock: product.totalStock,
-        marketplaces: product.marketplaces,
+        status: product.status === 'LOW_STOCK' || product.status === 'OUT_OF_STOCK'
+          ? 'ACTIVE'
+          : product.status,
+        variants: product.variants.map((variant) => ({
+          id: variant.id,
+          name: variant.name,
+          sku: variant.sku,
+          price: variant.price,
+          stock: variant.stock,
+        })),
+        marketplaceAccountIds: product.marketplaceAccountIds,
+      })
+      queueMicrotask(() => {
+        if (!cancelled) setMediaDrafts((product.media || []).map(existingDraft))
       })
     } else {
       form.resetFields()
       form.setFieldsValue({
-        marketplaces: ['Shopee'],
-        totalStock: 50,
+        status: 'ACTIVE',
+        category: 'ÁO KHOÁC / OUTERWEAR',
+        costPrice: 0,
+        variants: [{ name: 'Mặc định', sku: '', price: 0, stock: 0 }],
+        marketplaceAccountIds: [],
+      })
+      queueMicrotask(() => {
+        if (!cancelled) setMediaDrafts([])
       })
     }
-  }, [product, open, form])
+    return () => {
+      cancelled = true
+    }
+  }, [form, open, product])
 
-  const handleFinish = (values: any) => {
-    onSave(values)
-    form.resetFields()
+  useEffect(() => () => {
+    mediaDraftsRef.current.forEach((item) => {
+      if (item.file) URL.revokeObjectURL(item.previewUrl)
+    })
+  }, [])
+
+  const primaryKey = useMemo(
+    () => mediaDrafts.find((item) => item.primary)?.key,
+    [mediaDrafts],
+  )
+
+  const handleFiles = (files: FileList | null) => {
+    if (!files?.length) return
+    if (mediaDrafts.length + files.length > 20) {
+      message.error('Mỗi sản phẩm được lưu tối đa 20 ảnh và video.')
+      return
+    }
+    const pendingBytes = mediaDrafts.reduce(
+      (total, item) => total + (item.file?.size ?? 0),
+      0,
+    ) + Array.from(files).reduce((total, file) => total + file.size, 0)
+    if (pendingBytes > 200 * 1024 * 1024) {
+      message.error('Mỗi lượt tải lên được tối đa 200MB.')
+      return
+    }
+    const accepted: ProductMediaDraft[] = []
+    for (const file of Array.from(files)) {
+      const isImage = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)
+      const isVideo = ['video/mp4', 'video/webm', 'video/quicktime'].includes(file.type)
+      if (!isImage && !isVideo) {
+        message.error(`${file.name}: định dạng không được hỗ trợ.`)
+        continue
+      }
+      if ((isImage && file.size > 10 * 1024 * 1024)
+        || (isVideo && file.size > 100 * 1024 * 1024)) {
+        message.error(`${file.name}: ảnh tối đa 10MB, video tối đa 100MB.`)
+        continue
+      }
+      accepted.push({
+        key: `new-${crypto.randomUUID()}`,
+        file,
+        previewUrl: URL.createObjectURL(file),
+        mediaType: isVideo ? 'VIDEO' : 'IMAGE',
+        primary: mediaDrafts.length === 0 && accepted.length === 0,
+      })
+    }
+    setMediaDrafts((current) => [...current, ...accepted])
+  }
+
+  const setPrimary = (key: string) => {
+    setMediaDrafts((current) => current.map((item) => ({
+      ...item,
+      primary: item.key === key,
+    })))
+  }
+
+  const moveMedia = (index: number, direction: -1 | 1) => {
+    setMediaDrafts((current) => {
+      const target = index + direction
+      if (target < 0 || target >= current.length) return current
+      const next = [...current]
+      ;[next[index], next[target]] = [next[target], next[index]]
+      return next
+    })
+  }
+
+  const removeMedia = (key: string) => {
+    setMediaDrafts((current) => {
+      const removed = current.find((item) => item.key === key)
+      if (removed?.file) URL.revokeObjectURL(removed.previewUrl)
+      const next = current.filter((item) => item.key !== key)
+      if (removed?.primary && next.length > 0) {
+        next[0] = { ...next[0], primary: true }
+      }
+      return next
+    })
+  }
+
+  const handleFinish = async (values: Partial<Product>) => {
+    if (mediaDrafts.length > 0 && !primaryKey) {
+      message.error('Vui lòng chọn một ảnh hoặc video làm media chính.')
+      return
+    }
+    setSubmitting(true)
+    try {
+      await onSave({ ...values, mediaDrafts })
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
     <Modal
-      title={product ? 'Sửa thông tin sản phẩm' : 'Thêm mới sản phẩm'}
-      open={open}
+      cancelButtonProps={{ disabled: submitting }}
+      cancelText="Hủy"
+      confirmLoading={submitting}
+      destroyOnHidden
+      maskClosable={!submitting}
+      okText={product ? 'Cập nhật' : 'Tạo mới'}
       onCancel={onCancel}
       onOk={() => form.submit()}
-      okText={product ? 'Cập nhật' : 'Tạo mới'}
-      cancelText="Hủy"
-      width={700}
-      destroyOnClose
+      open={open}
+      title={product ? 'Sửa sản phẩm, biến thể và media' : 'Thêm sản phẩm mới'}
+      width={980}
     >
       <Form form={form} layout="vertical" onFinish={handleFinish} style={{ marginTop: 16 }}>
         <Row gutter={16}>
           <Col span={16}>
-            <Form.Item
-              name="name"
-              label="Tên sản phẩm"
-              rules={[{ required: true, message: 'Vui lòng nhập tên sản phẩm' }]}
-            >
-              <Input placeholder="Ví dụ: Áo khoác denim nam dáng rộng AK-204" />
+            <Form.Item name="name" label="Tên sản phẩm" rules={[{ required: true, message: 'Vui lòng nhập tên sản phẩm' }]}>
+              <Input maxLength={255} placeholder="Ví dụ: Áo khoác denim nam" />
             </Form.Item>
           </Col>
-
           <Col span={8}>
-            <Form.Item
-              name="code"
-              label="Mã SKU gốc"
-              rules={[{ required: true, message: 'Vui lòng nhập mã SKU' }]}
-            >
-              <Input placeholder="DNM-OUT-AK204" />
+            <Form.Item name="code" label="Mã sản phẩm" rules={[{ required: true, message: 'Vui lòng nhập mã sản phẩm' }]}>
+              <Input maxLength={100} placeholder="DNM-AK204" />
             </Form.Item>
           </Col>
         </Row>
 
         <Row gutter={16}>
-          <Col span={12}>
-            <Form.Item name="category" label="Danh mục sản phẩm" initialValue="ÁO KHOÁC / OUTERWEAR">
-              <Select>
-                <Select.Option value="ÁO KHOÁC / OUTERWEAR">ÁO KHOÁC / OUTERWEAR</Select.Option>
-                <Select.Option value="QUẦN JEAN / DENIM">QUẦN JEAN / DENIM</Select.Option>
-                <Select.Option value="ÁO THUN & POLO">ÁO THUN & POLO</Select.Option>
-                <Select.Option value="PHỤ KIỆN / GIÀY DÉP">PHỤ KIỆN / GIÀY DÉP</Select.Option>
-              </Select>
+          <Col span={10}>
+            <Form.Item name="category" label="Danh mục">
+              <Select options={[
+                'ÁO KHOÁC / OUTERWEAR',
+                'QUẦN JEAN / DENIM',
+                'ÁO THUN & POLO',
+                'PHỤ KIỆN / GIÀY DÉP',
+              ].map((value) => ({ value, label: value }))} />
             </Form.Item>
           </Col>
-
-          <Col span={12}>
-            <Form.Item name="imageUrl" label="Link hình ảnh (URL)">
-              <Input placeholder="https://..." />
-            </Form.Item>
-          </Col>
-        </Row>
-
-        <Row gutter={16}>
-          <Col span={8}>
-            <Form.Item
-              name="price"
-              label="Giá bán lẻ (VNĐ)"
-              rules={[{ required: true, message: 'Nhập giá bán' }]}
-            >
-              <InputNumber
-                style={{ width: '100%' }}
-                formatter={(val) => `${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                parser={(val) => val?.replace(/\$\s?|(,*)/g, '') as any}
-                placeholder="489000"
-              />
-            </Form.Item>
-          </Col>
-
-          <Col span={8}>
+          <Col span={7}>
             <Form.Item name="costPrice" label="Giá vốn (VNĐ)">
-              <InputNumber
-                style={{ width: '100%' }}
-                formatter={(val) => `${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                parser={(val) => val?.replace(/\$\s?|(,*)/g, '') as any}
-                placeholder="280000"
-              />
+              <InputNumber min={0} style={{ width: '100%' }} />
             </Form.Item>
           </Col>
-
-          <Col span={8}>
-            <Form.Item name="totalStock" label="Tổng tồn kho">
-              <InputNumber style={{ width: '100%' }} min={0} placeholder="100" />
+          <Col span={7}>
+            <Form.Item name="status" label="Trạng thái">
+              <Select options={[
+                { value: 'ACTIVE', label: 'Đang hoạt động' },
+                { value: 'DRAFT', label: 'Bản nháp' },
+                { value: 'INACTIVE', label: 'Tạm ngưng' },
+              ]} />
             </Form.Item>
           </Col>
         </Row>
 
-        <Form.Item name="marketplaces" label="Sàn thương mại điện tử liên kết">
-          <Checkbox.Group options={['Shopee', 'Lazada', 'TikTok Shop'] as MarketplaceType[]} />
+        <Form.Item name="description" label="Mô tả sản phẩm">
+          <Input.TextArea rows={3} maxLength={4000} showCount />
         </Form.Item>
+
+        <Form.Item
+          name="marketplaceAccountIds"
+          label="Shop sẽ đăng sản phẩm"
+          extra={
+            marketplaceConnections.length > 0
+              ? 'Có thể chọn nhiều shop trên cùng một sàn. Nút Đồng bộ Sàn sẽ đăng hoặc cập nhật sản phẩm lên các shop này.'
+              : 'Chưa có shop đang kết nối. Hãy liên kết shop tại trang Liên kết sàn trước.'
+          }
+        >
+          <Select
+            disabled={marketplaceConnections.length === 0}
+            mode="multiple"
+            optionFilterProp="label"
+            options={marketplaceConnections.map((connection) => ({
+              value: connection.id,
+              label: `${connection.shopName} · ${connection.marketplaceName}`,
+            }))}
+            placeholder="Chọn TikTok Shop hoặc Lazada shop"
+          />
+        </Form.Item>
+
+        <section className="product-modal-section">
+          <div className="product-modal-section-heading">
+            <div>
+              <strong>Biến thể sản phẩm</strong>
+              <span>Mỗi biến thể có SKU, giá và tồn kho riêng.</span>
+            </div>
+          </div>
+          <Form.List
+            name="variants"
+            rules={[{
+              validator: async (_, variants) => {
+                if (!variants?.length) throw new Error('Sản phẩm phải có ít nhất một biến thể.')
+              },
+            }]}
+          >
+            {(fields, { add, remove }, { errors }) => (
+              <>
+                {fields.map((field) => (
+                  <Row className="product-variant-editor" gutter={10} key={field.key}>
+                    <Col span={7}>
+                      <Form.Item name={[field.name, 'name']} label="Tên biến thể" rules={[{ required: true, message: 'Nhập tên' }]}>
+                        <Input placeholder="Đen / Size M" />
+                      </Form.Item>
+                    </Col>
+                    <Col span={6}>
+                      <Form.Item name={[field.name, 'sku']} label="SKU" rules={[{ required: true, message: 'Nhập SKU' }]}>
+                        <Input placeholder="AK204-BLK-M" />
+                      </Form.Item>
+                    </Col>
+                    <Col span={5}>
+                      <Form.Item name={[field.name, 'price']} label="Giá bán" rules={[{ required: true, message: 'Nhập giá' }]}>
+                        <InputNumber min={0} style={{ width: '100%' }} />
+                      </Form.Item>
+                    </Col>
+                    <Col span={4}>
+                      <Form.Item name={[field.name, 'stock']} label="Tồn kho" rules={[{ required: true, message: 'Nhập tồn' }]}>
+                        <InputNumber min={0} precision={0} style={{ width: '100%' }} />
+                      </Form.Item>
+                    </Col>
+                    <Col className="product-variant-remove" span={2}>
+                      <Button danger disabled={fields.length === 1} icon={<DeleteOutlined />} onClick={() => remove(field.name)} />
+                    </Col>
+                  </Row>
+                ))}
+                <Button icon={<PlusOutlined />} onClick={() => add({ name: '', sku: '', price: 0, stock: 0 })} type="dashed">
+                  Thêm biến thể
+                </Button>
+                <Form.ErrorList errors={errors} />
+              </>
+            )}
+          </Form.List>
+        </section>
+
+        <section className="product-modal-section">
+          <div className="product-modal-section-heading">
+            <div>
+              <strong>Ảnh và video</strong>
+              <span>Tối đa 20 file. Ảnh 10MB, video 100MB; dữ liệu được lưu trên Cloudinary.</span>
+            </div>
+            <label className="product-media-upload">
+              <UploadOutlined /> Chọn nhiều file
+              <input
+                accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
+                multiple
+                onChange={(event) => {
+                  handleFiles(event.target.files)
+                  event.target.value = ''
+                }}
+                type="file"
+              />
+            </label>
+          </div>
+
+          {mediaDrafts.length === 0 ? (
+            <div className="product-media-empty">Chưa có ảnh hoặc video cho sản phẩm.</div>
+          ) : (
+            <div className="product-media-grid">
+              {mediaDrafts.map((item, index) => (
+                <article className={`product-media-item ${item.primary ? 'is-primary' : ''}`} key={item.key}>
+                  <div className="product-media-preview">
+                    {item.mediaType === 'VIDEO' ? (
+                      <video controls preload="metadata" src={item.previewUrl} />
+                    ) : (
+                      <img alt={`Media ${index + 1}`} src={item.previewUrl} />
+                    )}
+                    <span>{item.mediaType === 'VIDEO' ? 'VIDEO' : 'ẢNH'}</span>
+                  </div>
+                  <div className="product-media-actions">
+                    <button
+                      className={item.primary ? 'is-primary' : ''}
+                      onClick={() => setPrimary(item.key)}
+                      title="Chọn làm media chính"
+                      type="button"
+                    >
+                      {item.primary ? <StarFilled /> : <StarOutlined />}
+                    </button>
+                    <button disabled={index === 0} onClick={() => moveMedia(index, -1)} title="Đưa lên" type="button">
+                      <ArrowUpOutlined />
+                    </button>
+                    <button disabled={index === mediaDrafts.length - 1} onClick={() => moveMedia(index, 1)} title="Đưa xuống" type="button">
+                      <ArrowDownOutlined />
+                    </button>
+                    <button className="is-danger" onClick={() => removeMedia(item.key)} title="Xóa" type="button">
+                      <DeleteOutlined />
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
       </Form>
     </Modal>
   )

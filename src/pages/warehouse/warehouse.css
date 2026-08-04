@@ -289,7 +289,7 @@
 .wh-table col.col-price    { width: 120px; }
 .wh-table col.col-qty      { width: 130px; }
 .wh-table col.col-status   { width: 170px; }
-.wh-table col.col-action   { width: 100px; }
+.wh-table col.col-action   { width: 156px; }
 
 .wh-table thead tr {
   background: #f9fafb;
@@ -449,6 +449,11 @@
 
 /* ===== ACTION BUTTONS ===== */
 .btn-nhap-hang {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+  justify-content: center;
+  min-width: 136px;
   padding: 5px 12px;
   border-radius: 6px;
   border: none;
@@ -479,7 +484,8 @@
 .btn-xa-hang:hover { background: #fef3c7; }
 
 .btn-wh-action {
-  width: 30px;
+  width: auto;
+  min-width: 106px;
   height: 30px;
   border-radius: 6px;
   border: 1px solid #e5e7eb;
@@ -491,10 +497,45 @@
   cursor: pointer;
   transition: all 0.15s;
   font-size: 13px;
+  font-family: inherit;
+  font-weight: 700;
+  gap: 6px;
+  padding: 5px 12px;
+  white-space: nowrap;
 }
 .btn-wh-action:hover {
   background: #f3f4f6;
   color: #374151;
+}
+
+.wh-restock-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  align-items: end;
+  gap: 16px;
+  padding: 14px 0 4px;
+}
+
+.wh-restock-form label {
+  display: grid;
+  gap: 7px;
+}
+
+.wh-restock-form label > span {
+  color: #374151;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.wh-restock-form .ant-select,
+.wh-restock-form .ant-input-number {
+  width: 100%;
+}
+
+@media (max-width: 560px) {
+  .wh-restock-form {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ===== PAGINATION ===== */
