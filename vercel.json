@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/management-api/:path*",
+      "destination": "https://api.managementomni.me/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
