@@ -9,7 +9,6 @@ import {
   ProductOutlined,
   RobotOutlined,
   ShoppingCartOutlined,
-  TeamOutlined,
   UserOutlined,
 } from '@ant-design/icons'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
