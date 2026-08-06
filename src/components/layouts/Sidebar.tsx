@@ -74,11 +74,11 @@ const navigationItems: NavigationItem[] = [
     to: ROUTES.orders,
     icon: <ShoppingCartOutlined />,
   },
-  {
-    label: 'Khách hàng CRM',
-    to: ROUTES.customers,
-    icon: <TeamOutlined />,
-  },
+  // {
+  //   label: 'Khách hàng CRM',
+  //   to: ROUTES.customers,
+  //   icon: <TeamOutlined />,
+  // },
   {
     label: 'Nhân viên CSKH',
     to: ROUTES.staff,
