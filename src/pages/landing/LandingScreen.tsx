@@ -1,5 +1,4 @@
 import {
-  CommentOutlined,
   SendOutlined,
 } from '@ant-design/icons'
 import { type FormEvent, useEffect, useRef, useState } from 'react'
@@ -23,7 +22,7 @@ export default function LandingScreen() {
   const { session } = useAuth()
 
   useEffect(() => {
-    document.title = 'SmartHub - Vận hành kinh doanh đa sàn đột phá cùng AI'
+    document.title = 'Omnichannel - Vận hành kinh doanh đa sàn đột phá cùng AI'
   }, [])
 
   // Messages state
@@ -63,11 +62,11 @@ export default function LandingScreen() {
   const suggestions = [
     {
       text: '🛡️ Tư vấn bảo hành',
-      reply: 'Dạ, dòng Macbook Pro M3 bên em được bảo hành chính hãng 12 tháng tại các trung tâm ủy quyền Apple Việt Nam. Đặc biệt, SmartHub hỗ trợ chính sách 1-đổi-1 trong vòng 30 ngày đầu nếu phát sinh lỗi từ nhà sản xuất ạ!',
+      reply: 'Dạ, dòng Macbook Pro M3 bên em được bảo hành chính hãng 12 tháng tại các trung tâm ủy quyền Apple Việt Nam. Đặc biệt, Omnichannel hỗ trợ chính sách 1-đổi-1 trong vòng 30 ngày đầu nếu phát sinh lỗi từ nhà sản xuất ạ!',
     },
     {
       text: '💳 Thanh toán qua QR',
-      reply: 'Dạ, anh/chị có thể thanh toán chuyển khoản cực nhanh qua VietQR. Hệ thống SmartHub sẽ tự động tạo mã QR động kèm số tiền và nội dung chuyển khoản chính xác, giúp duyệt đơn tự động sau 3 giây ạ!',
+      reply: 'Dạ, anh/chị có thể thanh toán chuyển khoản cực nhanh qua VietQR. Hệ thống Omnichannel sẽ tự động tạo mã QR động kèm số tiền và nội dung chuyển khoản chính xác, giúp duyệt đơn tự động sau 3 giây ạ!',
     },
     {
       text: '🙋 Gặp nhân viên',
@@ -119,7 +118,7 @@ export default function LandingScreen() {
         {
           id: Date.now() + 1,
           sender: 'assistant',
-          text: `Dạ, trợ lý AI SmartHub đã nhận được thông tin: "${userText}". Em đang kết nối dữ liệu tồn kho và kịch bản CSKH để phản hồi anh/chị tốt nhất ạ!`,
+          text: `Dạ, trợ lý AI Omnichannel đã nhận được thông tin: "${userText}". Em đang kết nối dữ liệu tồn kho và kịch bản CSKH để phản hồi anh/chị tốt nhất ạ!`,
           type: 'text',
         },
       ])
@@ -137,9 +136,9 @@ export default function LandingScreen() {
         <header className="landing-header">
           <div className="landing-logo">
             <span className="landing-logo-mark">
-              <CommentOutlined style={{ color: '#fff', fontSize: '16px' }} />
+              <img src="/logo.jpeg" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px', display: 'block' }} />
             </span>
-            <span>SmartHub</span>
+            <span>Omnichannel</span>
           </div>
           <nav className="landing-nav">
             <a href="#features" className="landing-nav-link">Tính năng</a>
@@ -194,7 +193,7 @@ export default function LandingScreen() {
                 <span className="mockup-dot green" />
               </div>
               <div className="mockup-address-bar">
-                app.smarthub.vn/omnichannel/chat
+                app.omnichannel.vn/chat
               </div>
             </div>
 
@@ -478,13 +477,13 @@ export default function LandingScreen() {
         {/* Footer */}
         <footer className="landing-footer">
           <div className="footer-brand">
-            <span className="landing-logo-mark" style={{ padding: '4px 6px', borderRadius: '4px' }}>
-              <CommentOutlined style={{ color: '#fff', fontSize: '10px' }} />
+            <span className="landing-logo-mark" style={{ padding: '0', borderRadius: '4px', overflow: 'hidden' }}>
+              <img src="/logo.jpeg" alt="Logo" style={{ width: '20px', height: '20px', objectFit: 'cover', display: 'block' }} />
             </span>
-            <span>SmartHub</span>
+            <span>Omnichannel</span>
           </div>
           <div>
-            © 2026 SmartHub Platform. Built with next-generation UI/UX engineering.
+            © 2026 Omnichannel Platform. Built with next-generation UI/UX engineering.
           </div>
         </footer>
 

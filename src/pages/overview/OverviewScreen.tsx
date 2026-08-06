@@ -42,7 +42,7 @@ export default function OverviewScreen() {
   }
 
   useEffect(() => {
-    document.title = 'Tổng quan | SmartHub'
+    document.title = 'Tổng quan | Omnichannel'
     loadOverview()
   }, [])
 

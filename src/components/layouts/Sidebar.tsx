@@ -18,20 +18,7 @@ import { useAuth } from '../../contexts/authContext'
 import { ROUTES } from '../../routes/paths'
 import { homeRouteForRoles, isCustomerSupportRole } from '../../routes/access'
 
-// Icon SMARTHUB logo (custom S-mark)
-function SmartHubIcon() {
-  return (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect width="24" height="24" rx="5" fill="none" />
-      <path
-        d="M6 8C6 7.448 6.448 7 7 7h4a3 3 0 0 1 0 6H7a1 1 0 0 0 0 2h5a1 1 0 0 1 0 2H7a3 3 0 0 1 0-6h4a1 1 0 0 0 0-2H7a1 1 0 0 1-1-1Z"
-        fill="white"
-      />
-      <circle cx="18" cy="7.5" r="2.5" fill="white" />
-      <circle cx="18" cy="16.5" r="2.5" fill="white" />
-    </svg>
-  )
-}
+
 
 type NavigationItem = {
   label: string
@@ -164,10 +151,10 @@ export default function Sidebar() {
       <div className="app-brand">
         <NavLink className="app-logo" to={homeRouteForRoles(session?.roles ?? [])}>
           <span className="app-logo-mark" aria-hidden="true">
-            <SmartHubIcon />
+            <img src="/logo.jpeg" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px', display: 'block' }} />
           </span>
           <span className="app-logo-copy">
-            <strong>SMARTHUB</strong>
+            <strong>OMNICHANNEL</strong>
             <small>MANAGEMENT SUITE</small>
           </span>
         </NavLink>

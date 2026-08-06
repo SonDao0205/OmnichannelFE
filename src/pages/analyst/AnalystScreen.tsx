@@ -6,7 +6,7 @@ export default function AnalystScreen() {
   const [selectedPeriod, setSelectedPeriod] = useState('this-month')
 
   useEffect(() => {
-    document.title = 'Phân tích tài chính | SmartHub'
+    document.title = 'Phân tích tài chính | Omnichannel'
   }, [])
 
   return (
