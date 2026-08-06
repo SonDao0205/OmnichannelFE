@@ -34,7 +34,7 @@ export default function LoginScreen() {
   const [fieldErrors, setFieldErrors] = useState<LoginValidationErrors>({})
 
   useEffect(() => {
-    document.title = 'Đăng nhập | Omnichannel'
+    document.title = 'Omnichannel'
   }, [])
 
   if (!isLoading && session) {

@@ -25,7 +25,7 @@ export default function FirstLoginPasswordScreen() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    document.title = 'Đổi mật khẩu lần đầu | Omnichannel'
+    document.title = 'Omnichannel'
   }, [])
 
   const requirements = useMemo(

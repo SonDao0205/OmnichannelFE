@@ -126,7 +126,7 @@ export default function AiContextScreen() {
   }, [])
 
   useEffect(() => {
-    document.title = 'Ngữ cảnh AI | Omnichannel'
+    document.title = 'Omnichannel'
     let active = true
     marketplaceApi
       .list()

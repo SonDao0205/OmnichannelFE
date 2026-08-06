@@ -76,7 +76,7 @@ export default function StaffManagementScreen() {
   // Load staff list on mount
   useEffect(() => {
     fetchStaff()
-    document.title = 'Quản lý nhân viên CSKH | Omnichannel'
+    document.title = 'Omnichannel'
   }, [])
 
   // Reset page number on search/filter changes
