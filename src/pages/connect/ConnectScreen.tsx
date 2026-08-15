@@ -3,9 +3,8 @@ import {
   ClockCircleOutlined,
   DisconnectOutlined,
   LinkOutlined,
-  ReloadOutlined,
+  LoadingOutlined,
   SafetyCertificateOutlined,
-  SyncOutlined,
 } from '@ant-design/icons'
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -144,84 +143,6 @@ export default function ConnectScreen() {
     }
   }
 
-  const verify = async (connection: MarketplaceConnection) => {
-    setWorkingKey(`verify:${connection.id}`)
-    try {
-      const updated = await marketplaceApi.verify(connection.id)
-      setConnections((current) =>
-        current.map((item) => (item.id === updated.id ? updated : item)),
-      )
-      toast.success(`Kết nối ${connection.shopName} đang hoạt động tốt.`)
-    } catch (error) {
-      toast.error(marketplaceErrorMessage(error))
-    } finally {
-      setWorkingKey(null)
-    }
-  }
-
-  const refresh = async (connection: MarketplaceConnection) => {
-    setWorkingKey(`refresh:${connection.id}`)
-    try {
-      const updated = await marketplaceApi.refresh(connection.id)
-      setConnections((current) =>
-        current.map((item) => (item.id === updated.id ? updated : item)),
-      )
-      toast.success('Đã làm mới access token của sàn.')
-    } catch (error) {
-      toast.error(marketplaceErrorMessage(error))
-    } finally {
-      setWorkingKey(null)
-    }
-  }
-
-  const sync = async (connection: MarketplaceConnection) => {
-    setWorkingKey(`sync:${connection.id}`)
-    try {
-      const result = await marketplaceApi.syncAccount(connection.id)
-      const archived = result.archivedProducts + result.archivedVariants
-      toast.success(
-        `Đã đồng bộ ${result.products} sản phẩm, ${result.variants} SKU và ${result.orders} đơn hàng từ ${connection.shopName}.`,
-      )
-      if (archived > 0) {
-        toast.info(`Đã ngừng hiển thị ${archived} sản phẩm/SKU không còn trên sàn.`)
-      }
-      if (result.failures > 0) {
-        toast.warning('Shop chưa đồng bộ được. Hãy kiểm tra token hoặc trạng thái sàn.')
-      }
-    } catch (error) {
-      toast.error(marketplaceErrorMessage(error))
-    } finally {
-      setWorkingKey(null)
-    }
-  }
-
-  const syncAll = async () => {
-    setWorkingKey('sync:all')
-    try {
-      const result = await marketplaceApi.syncAll()
-      const succeeded = result.shopResults.filter(
-        (shop) => shop.status === 'SUCCEEDED',
-      )
-      const unsuccessful = result.shopResults.filter(
-        (shop) =>
-          shop.status !== 'SUCCEEDED' &&
-          shop.errorCode !== 'ACCOUNT_NOT_CONNECTED',
-      )
-      toast.success(
-        `Đã đồng bộ ${succeeded.length}/${connectedCount} shop: ${result.products} sản phẩm, ${result.variants} SKU và ${result.orders} đơn hàng.`,
-      )
-      if (unsuccessful.length > 0) {
-        toast.warning(
-          `Chưa đồng bộ được: ${unsuccessful.map((shop) => shop.shopName).join(', ')}. Các shop còn lại vẫn được xử lý bình thường.`,
-        )
-      }
-    } catch (error) {
-      toast.error(marketplaceErrorMessage(error))
-    } finally {
-      setWorkingKey(null)
-    }
-  }
-
   const disconnect = async (connection: MarketplaceConnection) => {
     const confirmation = await Swal.fire({
       title: 'Ngắt liên kết cửa hàng?',
@@ -256,20 +177,11 @@ export default function ConnectScreen() {
           <span className="connect-eyebrow">Kênh bán hàng</span>
           <h1>Liên kết sàn</h1>
           <p>
-            Kết nối shop giả lập để Omnichannel có quyền đọc và cập nhật dữ
+            Kết nối shop giả lập để SmartHub có quyền đọc và cập nhật dữ
             liệu theo phạm vi được cấp.
           </p>
         </div>
         <div className="connect-header-actions">
-          <button
-            type="button"
-            className="connect-sync-all-button"
-            onClick={() => void syncAll()}
-            disabled={connectedCount === 0 || workingKey !== null}
-          >
-            <SyncOutlined spin={workingKey === 'sync:all'} />
-            Đồng bộ tất cả shop ({connectedCount})
-          </button>
           <div className="connect-security-note">
             <SafetyCertificateOutlined />
             <span>
@@ -382,45 +294,6 @@ export default function ConnectScreen() {
                       <div className="shop-actions">
                         <button
                           type="button"
-                          onClick={() => void sync(connection)}
-                          disabled={
-                            connection.status !== 'CONNECTED' ||
-                            workingKey !== null
-                          }
-                        >
-                          <SyncOutlined
-                            spin={workingKey === `sync:${connection.id}`}
-                          />
-                          Đồng bộ dữ liệu
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void verify(connection)}
-                          disabled={
-                            !canConnect ||
-                            workingKey !== null
-                          }
-                        >
-                          <SyncOutlined
-                            spin={workingKey === `verify:${connection.id}`}
-                          />
-                          Xác minh
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void refresh(connection)}
-                          disabled={
-                            !canConnect ||
-                            workingKey !== null
-                          }
-                        >
-                          <ReloadOutlined
-                            spin={workingKey === `refresh:${connection.id}`}
-                          />
-                          Làm mới token
-                        </button>
-                        <button
-                          type="button"
                           className="is-danger"
                           onClick={() => void disconnect(connection)}
                           disabled={
@@ -449,7 +322,7 @@ export default function ConnectScreen() {
                 }
               >
                 {isAuthorizing ? (
-                  <ReloadOutlined spin />
+                  <LoadingOutlined spin />
                 ) : (
                   <LinkOutlined />
                 )}

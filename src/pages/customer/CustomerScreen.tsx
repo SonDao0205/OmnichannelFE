@@ -12,6 +12,7 @@ import {
 import { useEffect, useState } from 'react'
 import Swal from 'sweetalert2'
 import { AxiosError } from 'axios'
+import { Pagination } from 'antd'
 import type { ApiProblem } from '../../types/auth'
 import {
   customerApi,
@@ -26,7 +27,6 @@ export default function CustomerScreen() {
   // Page and list state
   const [customers, setCustomers] = useState<Customer[]>([])
   const [page, setPage] = useState(0)
-  const [totalPages, setTotalPages] = useState(1)
   const [totalElements, setTotalElements] = useState(0)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -124,7 +124,6 @@ export default function CustomerScreen() {
       })
 
       setCustomers(data.content)
-      setTotalPages(data.totalPages)
       setTotalElements(data.totalElements)
 
       // Calculate statistics dynamically for CRM demo KPI alignment
@@ -597,31 +596,18 @@ export default function CustomerScreen() {
             <span className="pagination-info">
               Hiển thị {filteredList.length} trong số {totalElements} profiles khách hàng
             </span>
-            <div className="pagination-pages">
-              <button
-                className="page-btn"
-                disabled={page === 0}
-                onClick={() => { setPage(page - 1); fetchCustomers(page - 1) }}
-              >
-                &lt;
-              </button>
-              {Array.from({ length: totalPages }, (_, i) => (
-                <button
-                  key={i}
-                  className={`page-btn ${page === i ? 'is-active' : ''}`}
-                  onClick={() => { setPage(i); fetchCustomers(i) }}
-                >
-                  {i + 1}
-                </button>
-              ))}
-              <button
-                className="page-btn"
-                disabled={page >= totalPages - 1}
-                onClick={() => { setPage(page + 1); fetchCustomers(page + 1) }}
-              >
-                &gt;
-              </button>
-            </div>
+            <Pagination
+              current={page + 1}
+              pageSize={20}
+              total={totalElements}
+              showSizeChanger={false}
+              showTotal={(total) => `${total} khách hàng`}
+              onChange={(nextPage) => {
+                const zeroBasedPage = nextPage - 1
+                setPage(zeroBasedPage)
+                void fetchCustomers(zeroBasedPage)
+              }}
+            />
           </div>
         </div>
 

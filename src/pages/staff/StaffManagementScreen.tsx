@@ -15,6 +15,7 @@ import {
 import Swal from 'sweetalert2'
 import axios from 'axios'
 import { toast } from 'react-toastify'
+import { Pagination } from 'antd'
 
 import { staffApi, staffErrorMessage } from '../../apis/staffApi'
 import type { StaffUser } from '../../apis/staffApi'
@@ -76,7 +77,7 @@ export default function StaffManagementScreen() {
   // Load staff list on mount
   useEffect(() => {
     fetchStaff()
-    document.title = 'Omnichannel'
+    document.title = 'SmartHub'
   }, [])
 
   // Reset page number on search/filter changes
@@ -355,16 +356,9 @@ export default function StaffManagementScreen() {
   }
 
   const total = filteredStaff.length
-  const totalPages = Math.ceil(total / PAGE_SIZE)
   const paginatedStaff = useMemo(() => {
     return filteredStaff.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE)
   }, [filteredStaff, currentPage])
-
-  const pageNumbers = useMemo(() => {
-    if (totalPages <= 1) return [0]
-    const start = Math.max(0, Math.min(currentPage - 1, totalPages - 3))
-    return Array.from({ length: Math.min(3, totalPages) }, (_, index) => start + index)
-  }, [currentPage, totalPages])
 
   return (
     <div className="staff-page">
@@ -575,38 +569,14 @@ export default function StaffManagementScreen() {
                   Hiển thị {currentPage * PAGE_SIZE + 1}–
                   {Math.min((currentPage + 1) * PAGE_SIZE, total)} trong {total} nhân viên
                 </span>
-                <div className="staff-pagination">
-                  <button
-                    disabled={currentPage === 0}
-                    onClick={() => {
-                      setCurrentPage((current) => Math.max(0, current - 1))
-                    }}
-                    type="button"
-                  >
-                    ‹
-                  </button>
-                  {pageNumbers.map((pageNumber) => (
-                    <button
-                      className={currentPage === pageNumber ? 'is-active' : ''}
-                      key={pageNumber}
-                      onClick={() => {
-                        setCurrentPage(pageNumber)
-                      }}
-                      type="button"
-                    >
-                      {pageNumber + 1}
-                    </button>
-                  ))}
-                  <button
-                    disabled={currentPage + 1 >= totalPages}
-                    onClick={() => {
-                      setCurrentPage((current) => current + 1)
-                    }}
-                    type="button"
-                  >
-                    ›
-                  </button>
-                </div>
+                <Pagination
+                  current={currentPage + 1}
+                  pageSize={PAGE_SIZE}
+                  total={total}
+                  showSizeChanger={false}
+                  showTotal={(value) => `${value} nhân viên`}
+                  onChange={(nextPage) => setCurrentPage(nextPage - 1)}
+                />
               </footer>
             </>
           )}

@@ -42,6 +42,14 @@ interface SpringPage<T> {
   size: number
 }
 
+export interface ProductPage {
+  content: Product[]
+  totalElements: number
+  totalPages: number
+  page: number
+  pageSize: number
+}
+
 function storedStatus(status: Product['status'] | undefined) {
   return status === 'LOW_STOCK' || status === 'OUT_OF_STOCK' ? 'ACTIVE' : status
 }
@@ -100,14 +108,20 @@ export const productApi = {
   },
 
   /** Lấy danh sách sản phẩm của tenant (có hỗ trợ tìm kiếm + lọc trạng thái) */
-  fetchProducts: async (search = '', status = '', page = 0, size = 50): Promise<Product[]> => {
+  fetchProducts: async (search = '', status = '', page = 0, size = 50): Promise<ProductPage> => {
     const params: Record<string, string | number> = { page, size }
     if (search) params.search = search
     if (status && status !== 'ALL') params.status = status
     const res = await managementApi.get<SpringPage<BackendProduct>>('/api/v1/products', { params })
     const data = res.data
     const list = Array.isArray(data) ? data : (data?.content ?? [])
-    return list.map(mapProduct)
+    return {
+      content: list.map(mapProduct),
+      totalElements: Array.isArray(data) ? data.length : data.totalElements,
+      totalPages: Array.isArray(data) ? 1 : data.totalPages,
+      page: Array.isArray(data) ? 0 : data.number,
+      pageSize: Array.isArray(data) ? size : data.size,
+    }
   },
 
   /** Lấy toàn bộ sản phẩm theo từng trang, tuân thủ giới hạn 100 bản ghi của backend. */
@@ -116,8 +130,8 @@ export const productApi = {
     const products: Product[] = []
     for (let page = 0; page < 1_000; page += 1) {
       const batch = await productApi.fetchProducts('', '', page, pageSize)
-      products.push(...batch)
-      if (batch.length < pageSize) return products
+      products.push(...batch.content)
+      if (batch.content.length < pageSize) return products
     }
     throw new Error('Số lượng sản phẩm vượt giới hạn tải kho an toàn.')
   },

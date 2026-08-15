@@ -40,6 +40,19 @@ interface SpringPage<T> {
   size: number
 }
 
+export interface OrderPage {
+  content: Order[]
+  totalElements: number
+  totalPages: number
+  page: number
+  pageSize: number
+}
+
+export interface OrderStats {
+  total: number
+  byStatus: Record<string, number>
+}
+
 // ─── Map Backend → Frontend ──────────────────────────────────────────────────
 
 function mapItem(i: BackendOrderItem): OrderItem {
@@ -83,14 +96,25 @@ function mapOrder(o: BackendOrder): Order {
 
 export const orderApi = {
   /** Lấy danh sách đơn hàng (tìm kiếm + lọc trạng thái) */
-  fetchOrders: async (search = '', status = '', page = 0, size = 50): Promise<Order[]> => {
+  fetchOrders: async (search = '', status = '', page = 0, size = 50): Promise<OrderPage> => {
     const params: Record<string, string | number> = { page, size }
     if (search) params.search = search
     if (status && status !== 'ALL') params.status = status
     const res = await managementApi.get<SpringPage<BackendOrder>>('/api/v1/orders', { params })
     const data = res.data
     const list = Array.isArray(data) ? data : (data?.content ?? [])
-    return list.map(mapOrder)
+    return {
+      content: list.map(mapOrder),
+      totalElements: Array.isArray(data) ? data.length : data.totalElements,
+      totalPages: Array.isArray(data) ? 1 : data.totalPages,
+      page: Array.isArray(data) ? 0 : data.number,
+      pageSize: Array.isArray(data) ? size : data.size,
+    }
+  },
+
+  fetchStats: async (): Promise<OrderStats> => {
+    const res = await managementApi.get<OrderStats>('/api/v1/orders/stats')
+    return res.data
   },
 
   /** Lấy chi tiết một đơn hàng */

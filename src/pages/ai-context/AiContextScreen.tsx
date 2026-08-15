@@ -126,7 +126,7 @@ export default function AiContextScreen() {
   }, [])
 
   useEffect(() => {
-    document.title = 'Omnichannel'
+    document.title = 'SmartHub'
     let active = true
     marketplaceApi
       .list()

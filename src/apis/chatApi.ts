@@ -34,12 +34,57 @@ export type ChatConversation = {
 }
 
 export type MarketplaceCustomer = {
+  id?: string
   displayName?: string | null
   externalCustomerId?: string | null
   avatarUrl?: string | null
   phoneMasked?: string | null
   emailMasked?: string | null
   lastSeenAt?: string | null
+}
+
+export type CustomerLeadPriorityCode =
+  | 'HOT_LEAD'
+  | 'WARM_LEAD'
+  | 'COLD_LEAD'
+  | 'EXISTING_PRIORITY'
+
+export type CustomerLeadPriority = {
+  code: CustomerLeadPriorityCode
+  label: string
+  definition: string
+  score: number
+  reason: string | null
+  source: 'AI' | 'RULE_ENGINE' | 'STAFF' | 'ORDER_EVENT'
+  computedAt: string | null
+}
+
+export type CustomerProductRecommendation = {
+  id: string
+  type: 'UPSELL' | 'CROSS_SELL' | 'REPURCHASE' | 'ALTERNATIVE'
+  score: number
+  reason: string
+  productId: string
+  productName: string
+  variantId: string | null
+  variantName: string | null
+  price: string
+  currency: string
+  availableStock: number
+  imageUrl: string | null
+}
+
+export type CustomerAiProfileView = {
+  aiProfile: {
+    status: 'EMPTY' | 'PENDING' | 'READY' | 'FAILED'
+    version: number
+    summary: string | null
+    preferences: string[]
+    features?: Record<string, unknown>
+    lastComputedAt?: string | null
+  }
+  leadPriority: CustomerLeadPriority | null
+  recommendations: CustomerProductRecommendation[]
 }
 
 export type ChatConversationDetail = {
@@ -154,6 +199,38 @@ export async function fetchChatOrderHistory(
   )
 
   return response.data.data
+}
+
+export async function fetchCustomerAiProfile(
+  tenantId: string,
+  conversationId: string,
+) {
+  const response = await chatHttp.get<ApiResponse<CustomerAiProfileView>>(
+    `/conversations/${conversationId}/customer-profile`,
+    { params: { tenantId } },
+  )
+  return response.data.data
+}
+
+export async function refreshCustomerAiProfile(
+  tenantId: string,
+  conversationId: string,
+) {
+  const response = await chatHttp.post<ApiResponse<CustomerAiProfileView>>(
+    `/conversations/${conversationId}/customer-profile/refresh`,
+    { tenantId },
+  )
+  return response.data.data
+}
+
+export async function dismissCustomerRecommendation(
+  tenantId: string,
+  recommendationId: string,
+) {
+  await chatHttp.post(
+    `/customer-recommendations/${recommendationId}/dismiss`,
+    { tenantId },
+  )
 }
 
 export async function markChatConversationRead(

@@ -25,12 +25,17 @@ type UseChatRealtimeInput = {
   conversationId: string | null
   onMessageCreated: (payload: MessageCreatedPayload) => void
   onConversationUpdated: (payload: ConversationUpdatedPayload) => void
+  onCustomerProfileUpdated?: (payload: {
+    marketplaceCustomerId: string
+    updatedAt: string
+  }) => void
 }
 
 export function useChatRealtime({
   conversationId,
   onMessageCreated,
   onConversationUpdated,
+  onCustomerProfileUpdated,
 }: UseChatRealtimeInput) {
   useEffect(() => {
     const socket = io(CHAT_SOCKET_URL, {
@@ -44,6 +49,9 @@ export function useChatRealtime({
 
     socket.on('message_created', onMessageCreated)
     socket.on('conversation_updated', onConversationUpdated)
+    if (onCustomerProfileUpdated) {
+      socket.on('customer_profile_updated', onCustomerProfileUpdated)
+    }
 
     return () => {
       if (conversationId) {
@@ -52,7 +60,10 @@ export function useChatRealtime({
 
       socket.off('message_created', onMessageCreated)
       socket.off('conversation_updated', onConversationUpdated)
+      if (onCustomerProfileUpdated) {
+        socket.off('customer_profile_updated', onCustomerProfileUpdated)
+      }
       socket.disconnect()
     }
-  }, [conversationId, onConversationUpdated, onMessageCreated])
+  }, [conversationId, onConversationUpdated, onCustomerProfileUpdated, onMessageCreated])
 }

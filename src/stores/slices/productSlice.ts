@@ -134,8 +134,8 @@ export const productSlice = createSlice({
       })
       .addCase(fetchProductsThunk.fulfilled, (state, action) => {
         state.loading = false
-        state.items = action.payload
-        state.totalElements = action.payload.length
+        state.items = action.payload.content
+        state.totalElements = action.payload.totalElements
       })
       .addCase(fetchProductsThunk.rejected, (state, action) => {
         state.loading = false

@@ -42,7 +42,7 @@ export default function OverviewScreen() {
   }
 
   useEffect(() => {
-    document.title = 'Omnichannel'
+    document.title = 'SmartHub'
     loadOverview()
   }, [])
 

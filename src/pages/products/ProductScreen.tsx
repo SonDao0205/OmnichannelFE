@@ -8,7 +8,7 @@ import {
   DeleteOutlined,
   PictureOutlined,
 } from '@ant-design/icons'
-import { Alert, Checkbox, Modal, Popconfirm, Radio, Select, Table, Tag, message } from 'antd'
+import { Alert, Checkbox, Modal, Pagination, Popconfirm, Radio, Select, Table, Tag, message } from 'antd'
 import Swal from 'sweetalert2'
 
 import { useAppDispatch, useAppSelector } from '../../hooks/redux'
@@ -56,7 +56,7 @@ function MarketplaceTags({ marketplaces }: { marketplaces: string[] }) {
 export default function ProductScreen() {
   const dispatch = useAppDispatch()
   const { hasPermission } = useAuth()
-  const { items, loading, error, filter, selectedProduct, isModalOpen } = useAppSelector(
+  const { items, totalElements, loading, error, filter, selectedProduct, isModalOpen } = useAppSelector(
     (state) => state.products
   )
   const [marketplaceConnections, setMarketplaceConnections] = useState<MarketplaceConnection[]>([])
@@ -85,7 +85,7 @@ export default function ProductScreen() {
   useEffect(() => {
     const timer = window.setInterval(() => {
       void dispatch(fetchProductsThunk())
-    }, 5000)
+    }, 30000)
     return () => window.clearInterval(timer)
   }, [dispatch])
 
@@ -759,28 +759,16 @@ export default function ProductScreen() {
       {/* ===== PAGINATION BAR ===== */}
       <div className="product-pagination-bar">
         <div>
-          Hiển thị 1–{filteredItems.length} trong số {items.length.toLocaleString('vi-VN')} sản phẩm
+          Hiển thị {filteredItems.length} trong số {totalElements.toLocaleString('vi-VN')} sản phẩm
         </div>
-        <div className="pagination-controls">
-          <button
-            className="page-btn"
-            disabled={filter.page <= 1}
-            onClick={() => dispatch(setPage(filter.page - 1))}
-            type="button"
-          >
-            ‹
-          </button>
-          <button className="page-btn active" type="button">1</button>
-          <button className="page-btn" type="button">2</button>
-          <button className="page-btn" type="button">3</button>
-          <button
-            className="page-btn"
-            onClick={() => dispatch(setPage(filter.page + 1))}
-            type="button"
-          >
-            ›
-          </button>
-        </div>
+        <Pagination
+          current={filter.page}
+          pageSize={filter.pageSize}
+          total={totalElements}
+          showSizeChanger={false}
+          showTotal={(total) => `${total} sản phẩm`}
+          onChange={(page) => dispatch(setPage(page))}
+        />
       </div>
 
       {/* ===== MODAL ADD / EDIT ===== */}

@@ -34,7 +34,7 @@ export default function LoginScreen() {
   const [fieldErrors, setFieldErrors] = useState<LoginValidationErrors>({})
 
   useEffect(() => {
-    document.title = 'Omnichannel'
+    document.title = 'SmartHub'
   }, [])
 
   if (!isLoading && session) {
@@ -103,7 +103,7 @@ export default function LoginScreen() {
           </span>
         </div>
         <header className="login-heading">
-          <p>OMNICHANNEL MANAGEMENT</p>
+          <p>SMARTHUB MANAGEMENT</p>
           <h1 id="login-title">Đăng nhập hệ thống</h1>
           <span>Sử dụng tài khoản doanh nghiệp đã được quản trị viên cấp.</span>
         </header>

@@ -1,11 +1,13 @@
 import { createAsyncThunk, createSlice, type PayloadAction } from '@reduxjs/toolkit'
-import { orderApi } from '../../apis/orderApi'
+import { orderApi, type OrderStats } from '../../apis/orderApi'
 import { apiErrorMessage } from '../../apis/authApi'
 import type { Order, OrderFilter, OrderStatus } from '../../types/order'
 
 interface OrderState {
   items: Order[]
   totalElements: number
+  totalPages: number
+  stats: OrderStats
   loading: boolean
   error: string | null
   filter: OrderFilter
@@ -16,6 +18,8 @@ interface OrderState {
 const initialState: OrderState = {
   items: [],
   totalElements: 0,
+  totalPages: 0,
+  stats: { total: 0, byStatus: {} },
   loading: false,
   error: null,
   filter: {
@@ -36,7 +40,11 @@ export const fetchOrdersThunk = createAsyncThunk(
       const state = getState() as { orders: OrderState }
       const { filter } = state.orders
       const status = filter.statusTab === 'ALL' ? '' : filter.statusTab
-      return await orderApi.fetchOrders(filter.search, status, filter.page - 1, filter.pageSize)
+      const [page, stats] = await Promise.all([
+        orderApi.fetchOrders(filter.search, status, filter.page - 1, filter.pageSize),
+        orderApi.fetchStats(),
+      ])
+      return { page, stats }
     } catch (error) {
       return rejectWithValue(apiErrorMessage(error))
     }
@@ -90,8 +98,16 @@ export const orderSlice = createSlice({
       })
       .addCase(fetchOrdersThunk.fulfilled, (state, action) => {
         state.loading = false
-        state.items = action.payload
-        state.totalElements = action.payload.length
+        state.items = action.payload.page.content
+        if (state.selectedOrder) {
+          const refreshedSelection = action.payload.page.content.find(
+            (order) => order.id === state.selectedOrder?.id,
+          )
+          if (refreshedSelection) state.selectedOrder = refreshedSelection
+        }
+        state.totalElements = action.payload.page.totalElements
+        state.totalPages = action.payload.page.totalPages
+        state.stats = action.payload.stats
       })
       .addCase(fetchOrdersThunk.rejected, (state, action) => {
         state.loading = false

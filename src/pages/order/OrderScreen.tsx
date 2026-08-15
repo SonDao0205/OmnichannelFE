@@ -5,16 +5,19 @@ import {
   fetchOrdersThunk,
   setStatusTab,
   setOrderSearch,
+  setOrderPage,
   openOrderDetail,
   closeOrderDetail,
   updateOrderStatusThunk,
 } from '../../stores/slices/orderSlice'
 import type { Order, OrderStatus } from '../../types/order'
 import OrderDetailModal from './OrderDetailModal'
-import { Alert, Button, message } from 'antd'
+import { Alert, Button, Pagination, message } from 'antd'
 import { marketplaceApi } from '../../apis/marketplaceApi'
 import { apiErrorMessage } from '../../apis/authApi'
 import { useAuth } from '../../contexts/authContext'
+import { io } from 'socket.io-client'
+import { CHAT_SOCKET_URL } from '../../apis/chatApi'
 import './orders.css'
 
 // ---- Helper: hiển thị nguồn sàn ----
@@ -57,7 +60,7 @@ function PaymentTag({ paymentStatus }: { paymentStatus: string }) {
 export default function OrderScreen() {
   const dispatch = useAppDispatch()
   const { hasPermission } = useAuth()
-  const { items, loading, error, filter, selectedOrder, isDetailOpen } = useAppSelector(
+  const { items, totalElements, stats, loading, error, filter, selectedOrder, isDetailOpen } = useAppSelector(
     (state) => state.orders
   )
   const [localSearch, setLocalSearch] = useState('')
@@ -72,8 +75,21 @@ export default function OrderScreen() {
   useEffect(() => {
     const timer = window.setInterval(() => {
       void dispatch(fetchOrdersThunk())
-    }, 5000)
+    }, 30000)
     return () => window.clearInterval(timer)
+  }, [dispatch])
+
+  useEffect(() => {
+    const socket = io(CHAT_SOCKET_URL, {
+      withCredentials: true,
+      transports: ['websocket', 'polling'],
+    })
+    const refreshOrders = () => void dispatch(fetchOrdersThunk())
+    socket.on('order_updated', refreshOrders)
+    return () => {
+      socket.off('order_updated', refreshOrders)
+      socket.disconnect()
+    }
   }, [dispatch])
 
   useEffect(() => {
@@ -92,25 +108,32 @@ export default function OrderScreen() {
   }
 
   // Count per tab
-  const countPending = items.filter(i => i.status === 'CREATED').length
-  const countPacked = items.filter(i => i.status === 'CONFIRMED' || i.status === 'READY_TO_SHIP').length
-  const countInTransit = items.filter(i => i.status === 'IN_TRANSIT').length
-  const countDelivered = items.filter(i => i.status === 'DELIVERED').length
-  const countCancelled = items.filter(i => i.status === 'CANCELLED' || i.status === 'RETURNED' || i.status === 'FAILED').length
+  const countPending = stats.byStatus.CREATED ?? 0
+  const countPacked = (stats.byStatus.CONFIRMED ?? 0) + (stats.byStatus.READY_TO_SHIP ?? 0)
+  const countInTransit = (stats.byStatus.SHIPPED ?? 0) + (stats.byStatus.IN_TRANSIT ?? 0)
+  const countDelivered = stats.byStatus.DELIVERED ?? 0
+  const countCancelled = (stats.byStatus.CANCELLED ?? 0) +
+    (stats.byStatus.RETURN_REQUESTED ?? 0) + (stats.byStatus.RETURNED ?? 0) +
+    (stats.byStatus.FAILED ?? 0)
 
   // Filter
-  const filteredOrders = items.filter((order) => {
-    if (filter.statusTab !== 'ALL' && order.status !== filter.statusTab) return false
-    const q = localSearch.toLowerCase().trim()
-    if (q) {
-      return (
-        order.orderCode.toLowerCase().includes(q) ||
-        order.customerName.toLowerCase().includes(q) ||
-        order.customerPhone.includes(q)
-      )
-    }
-    return true
-  })
+  const filteredOrders = items
+    .filter((order) => {
+      if (filter.statusTab !== 'ALL' && order.status !== filter.statusTab) return false
+      const q = localSearch.toLowerCase().trim()
+      if (q) {
+        return (
+          order.orderCode.toLowerCase().includes(q) ||
+          order.customerName.toLowerCase().includes(q) ||
+          order.customerPhone.includes(q)
+        )
+      }
+      return true
+    })
+    .sort((left, right) => {
+      const newestFirst = Date.parse(right.createdAt) - Date.parse(left.createdAt)
+      return newestFirst || right.id.localeCompare(left.id)
+    })
 
   const handleApprove = async (order: Order) => {
     try {
@@ -188,7 +211,7 @@ export default function OrderScreen() {
           type="button"
         >
           Tất cả đơn&nbsp;
-          <span className="tab-count">{items.length.toLocaleString('vi-VN')}</span>
+          <span className="tab-count">{stats.total.toLocaleString('vi-VN')}</span>
         </button>
 
         <button
@@ -400,16 +423,17 @@ export default function OrderScreen() {
         {/* ===== PAGINATION ===== */}
         <div className="order-pagination-bar">
           <div>
-            Hiển thị 1–{filteredOrders.length} trong số{' '}
-            {items.length.toLocaleString('vi-VN')} đơn hàng
+            Hiển thị {filteredOrders.length} trong số{' '}
+            {totalElements.toLocaleString('vi-VN')} kết quả
           </div>
-          <div className="order-pagination-controls">
-            <button className="order-page-btn" disabled type="button">‹</button>
-            <button className="order-page-btn active" type="button">1</button>
-            <button className="order-page-btn" type="button">2</button>
-            <button className="order-page-btn" type="button">3</button>
-            <button className="order-page-btn" type="button">›</button>
-          </div>
+          <Pagination
+            current={filter.page}
+            pageSize={filter.pageSize}
+            total={totalElements}
+            showSizeChanger={false}
+            showTotal={(total) => `${total} đơn hàng`}
+            onChange={(page) => dispatch(setOrderPage(page))}
+          />
         </div>
       </div>
 

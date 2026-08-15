@@ -25,7 +25,7 @@ export default function FirstLoginPasswordScreen() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    document.title = 'Omnichannel'
+    document.title = 'SmartHub'
   }, [])
 
   const requirements = useMemo(

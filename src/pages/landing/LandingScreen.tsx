@@ -23,7 +23,7 @@ export default function LandingScreen() {
   const { session } = useAuth()
 
   useEffect(() => {
-    document.title = 'Omnichannel'
+    document.title = 'SmartHub'
   }, [])
 
   // Messages state
@@ -350,7 +350,7 @@ export default function LandingScreen() {
                   <polyline points="22,6 12,13 2,6"/>
                 </svg>
               </div>
-              <h3 className="ecosystem-card-title">Hộp thư Omnichannel thông minh</h3>
+              <h3 className="ecosystem-card-title">Hộp thư SmartHub thông minh</h3>
               <p className="ecosystem-card-desc">
                 Không còn tình trạng chạy qua chạy lại giữa Shopee, Zalo, TikTok Shop để trả lời tin nhắn. 
                 Hệ thống gom toàn bộ tin nhắn đa kênh thời gian thực giúp tối đa hóa năng suất xử lý của nhân viên trực chat gấp 3 lần.

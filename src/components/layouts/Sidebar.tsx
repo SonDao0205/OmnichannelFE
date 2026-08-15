@@ -154,7 +154,7 @@ export default function Sidebar() {
             <img src="/logo.jpeg" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px', display: 'block' }} />
           </span>
           <span className="app-logo-copy">
-            <strong>OMNICHANNEL</strong>
+            <strong>SMARTHUB</strong>
             <small>MANAGEMENT SUITE</small>
           </span>
         </NavLink>

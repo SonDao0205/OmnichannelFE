@@ -16,14 +16,17 @@ import {
   fetchChatConversationDetail,
   fetchChatConversations,
   fetchChatMessages,
-  fetchChatOrderHistory,
+  fetchCustomerAiProfile,
+  refreshCustomerAiProfile,
+  dismissCustomerRecommendation,
   markChatConversationRead,
   sendChatMessage,
   type ChatChannelFilter,
   type ChatConversation,
   type ChatConversationDetail,
   type ChatMessage,
-  type ChatOrderHistory,
+  type CustomerAiProfileView,
+  type CustomerProductRecommendation,
 } from '../../apis/chatApi'
 import ChatWindow, {
   type ResponderMode,
@@ -103,7 +106,9 @@ export default function ChatScreen() {
   const [conversations, setConversations] = useState<ChatConversation[]>([])
   const [conversationDetail, setConversationDetail] =
     useState<ChatConversationDetail | null>(null)
-  const [orderHistory, setOrderHistory] = useState<ChatOrderHistory | null>(null)
+  const [customerProfile, setCustomerProfile] =
+    useState<CustomerAiProfileView | null>(null)
+  const [isProfileLoading, setIsProfileLoading] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isInboxLoading, setIsInboxLoading] = useState(false)
   const [isThreadLoading, setIsThreadLoading] = useState(false)
@@ -207,7 +212,7 @@ export default function ChatScreen() {
       // Reset all detail state when the selected external resource is cleared.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setConversationDetail(null)
-      setOrderHistory(null)
+      setCustomerProfile(null)
       setMessages([])
       setAiRun(null)
       setAiErrorMessage(null)
@@ -218,14 +223,15 @@ export default function ChatScreen() {
       if (!tenantId) return
 
       setIsThreadLoading(true)
+      setIsProfileLoading(true)
       setAiRun(null)
       setAiErrorMessage(null)
 
       try {
-        const [detail, threadMessages, orders, latestRun] = await Promise.all([
+        const [detail, threadMessages, profile, latestRun] = await Promise.all([
           fetchChatConversationDetail(tenantId, conversationId),
           fetchChatMessages(tenantId, conversationId),
-          fetchChatOrderHistory(tenantId, conversationId),
+          fetchCustomerAiProfile(tenantId, conversationId),
           canSuggest
             ? fetchLatestAiRun(conversationId).catch(() => null)
             : Promise.resolve(null),
@@ -235,7 +241,7 @@ export default function ChatScreen() {
 
         setConversationDetail(detail)
         setResponderMode(responderModeFromAiMode(detail.aiMode))
-        setOrderHistory(orders)
+        setCustomerProfile(profile)
         setMessages(threadMessages)
         setAiRun(latestRun)
         setConversations((currentConversations) =>
@@ -258,6 +264,7 @@ export default function ChatScreen() {
         setErrorMessage('Không tải được nội dung hội thoại.')
       } finally {
         setIsThreadLoading(false)
+        setIsProfileLoading(false)
       }
     }
 
@@ -552,11 +559,77 @@ export default function ChatScreen() {
     void loadConversations(true)
   }, [loadConversations])
 
+  const reloadCustomerProfile = useCallback(async () => {
+    const conversationId = selectedConversationIdRef.current
+    if (!tenantId || !conversationId) return
+    setIsProfileLoading(true)
+    try {
+      const profile = await fetchCustomerAiProfile(tenantId, conversationId)
+      if (selectedConversationIdRef.current === conversationId) {
+        setCustomerProfile(profile)
+      }
+    } finally {
+      if (selectedConversationIdRef.current === conversationId) {
+        setIsProfileLoading(false)
+      }
+    }
+  }, [tenantId])
+
+  const handleCustomerProfileUpdated = useCallback((payload: {
+    marketplaceCustomerId: string
+  }) => {
+    if (
+      payload.marketplaceCustomerId ===
+      conversationDetail?.marketplaceCustomer?.id
+    ) {
+      void reloadCustomerProfile()
+    }
+  }, [
+    conversationDetail?.marketplaceCustomer?.id,
+    reloadCustomerProfile,
+  ])
+
   useChatRealtime({
     conversationId: selectedConversationId,
     onMessageCreated: handleMessageCreated,
     onConversationUpdated: handleConversationUpdated,
+    onCustomerProfileUpdated: handleCustomerProfileUpdated,
   })
+
+  const handleRefreshCustomerProfile = async () => {
+    if (!tenantId || !selectedConversationId) return
+    setIsProfileLoading(true)
+    try {
+      const profile = await refreshCustomerAiProfile(
+        tenantId,
+        selectedConversationId,
+      )
+      if (selectedConversationIdRef.current === selectedConversationId) {
+        setCustomerProfile(profile)
+      }
+    } catch {
+      setErrorMessage('Không thể phân tích lại hồ sơ khách hàng.')
+    } finally {
+      setIsProfileLoading(false)
+    }
+  }
+
+  const handleDismissRecommendation = async (
+    recommendation: CustomerProductRecommendation,
+  ) => {
+    if (!tenantId) return
+    try {
+      await dismissCustomerRecommendation(tenantId, recommendation.id)
+      setCustomerProfile((current) => current ? {
+        ...current,
+        recommendations: current.recommendations.filter(
+          (item) => item.id !== recommendation.id,
+        ),
+      } : current)
+    } catch {
+      setErrorMessage('Không thể ẩn gợi ý sản phẩm.')
+    }
+  }
 
   const handleSendMessage = async (text: string) => {
     if (!selectedConversationId || !tenantId) return false
@@ -620,8 +693,13 @@ export default function ChatScreen() {
       <CustomerProfilePanel
         conversation={selectedConversation}
         detail={conversationDetail}
-        orderHistory={orderHistory}
+        customerProfile={customerProfile}
+        isProfileLoading={isProfileLoading}
         showAiBehaviorInsights={effectiveResponderMode === 'ai-recommend'}
+        onRefreshProfile={() => void handleRefreshCustomerProfile()}
+        onDismissRecommendation={(recommendation) => {
+          void handleDismissRecommendation(recommendation)
+        }}
       />
     </section>
   )
