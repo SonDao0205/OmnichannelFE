@@ -17,11 +17,27 @@
   }
 }
 
+@keyframes staff-modal-mask-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes staff-modal-zoom-in {
+  from {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .staff-page {
   min-height: 100svh;
   background: #fff;
   color: #101828;
-  animation: fadeInSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fadeInSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .staff-topbar {
@@ -542,6 +558,7 @@
   padding: 24px;
   background: rgba(15, 23, 42, 0.48);
   backdrop-filter: blur(4px);
+  animation: staff-modal-mask-in 0.2s linear both;
 }
 
 .staff-modal {
@@ -551,6 +568,14 @@
   border-radius: 14px;
   background: #fff;
   box-shadow: 0 30px 80px rgba(15, 23, 42, 0.28);
+  animation: staff-modal-zoom-in 0.2s cubic-bezier(0.08, 0.82, 0.17, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .staff-modal-backdrop,
+  .staff-modal {
+    animation: none;
+  }
 }
 
 .staff-modal.is-detail {
