@@ -343,45 +343,53 @@
   display: none;
 }
 
-/* ---- MARKETPLACE TAGS (góc dưới phải ảnh) ---- */
-.card-marketplace-tags {
-  position: absolute;
-  bottom: 9px;
-  right: 9px;
+/* ---- SYNCED SHOPS (footer ở đáy card, không phủ lên ảnh) ---- */
+.product-card-synced-shops {
+  background: #f8fafc;
+  border-top: 1px solid #e5e7eb;
+  padding: 10px 14px 12px;
+}
+
+.synced-shops-label {
+  color: #64748b;
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.45px;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.synced-shops-list {
   display: flex;
-  gap: 4px;
-  z-index: 2;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
-.mp-tag {
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 10px;
+.synced-shop-tag {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  color: #334155;
+  display: inline-flex;
+  font-size: 11px;
   font-weight: 700;
-  color: #ffffff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  line-height: 1.25;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 4px 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.mp-tag.Shopee {
-  background-color: #ee4d2d;
+.synced-shop-tiktok-shop {
+  border-color: #94a3b8;
+  color: #111827;
 }
 
-.mp-tag.Lazada {
-  background-color: #1a0dab;
-}
-
-.mp-tag.TikTok-Shop {
-  background-color: #111111;
-}
-
-.mp-tag-more {
-  padding: 2px 7px;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: 700;
-  color: #ffffff;
-  background-color: #374151;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+.synced-shop-lazada {
+  border-color: #a5b4fc;
+  color: #3730a3;
 }
 
 /* ---- CARD BODY ---- */

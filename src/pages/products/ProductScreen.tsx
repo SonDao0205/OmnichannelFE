@@ -35,20 +35,23 @@ import ProductModal from './ProductModal'
 import type { ProductFormSubmission, ProductMediaDraft } from './ProductModal'
 import './products.css'
 
-// Hiển thị tối đa 2 sàn + badge "+N"
-function MarketplaceTags({ marketplaces }: { marketplaces: string[] }) {
-  const MAX_SHOW = 2
-  const shown = marketplaces.slice(0, MAX_SHOW)
-  const rest = marketplaces.length - MAX_SHOW
+function SyncedShopFooter({ connections }: { connections: MarketplaceConnection[] }) {
+  if (connections.length === 0) return null
 
   return (
-    <div className="card-marketplace-tags">
-      {shown.map((mp) => (
-        <span key={mp} className={`mp-tag ${mp.replace(/\s+/g, '-')}`}>
-          {mp}
-        </span>
-      ))}
-      {rest > 0 && <span className="mp-tag-more">+{rest}</span>}
+    <div className="product-card-synced-shops">
+      <span className="synced-shops-label">Đã đồng bộ lên</span>
+      <div className="synced-shops-list">
+        {connections.map((connection) => (
+          <span
+            className={`synced-shop-tag synced-shop-${connection.marketplace.toLowerCase().replace(/_/g, '-')}`}
+            key={connection.id}
+            title={`${connection.marketplaceName}: ${connection.shopName}`}
+          >
+            {connection.shopName}
+          </span>
+        ))}
+      </div>
     </div>
   )
 }
@@ -128,9 +131,11 @@ export default function ProductScreen() {
   ).length
   const countDraft = items.filter((i) => i.status === 'DRAFT').length
 
-  const marketplaceLabels = (product: Product) => product.marketplaceAccountIds
+  const syncedMarketplaceConnections = (product: Product) => product.marketplaceAccountIds
     .map((accountId) => marketplaceConnections.find((item) => item.id === accountId))
     .filter((connection): connection is MarketplaceConnection => Boolean(connection))
+
+  const marketplaceLabels = (product: Product) => syncedMarketplaceConnections(product)
     .map((connection) => `${connection.marketplaceName}: ${connection.shopName}`)
 
   const openSyncModal = () => {
@@ -620,10 +625,6 @@ export default function ProductScreen() {
                   </div>
                 )}
 
-                {/* Marketplace badges — only show if not draft */}
-                {marketplaceLabels(prod).length > 0 && (
-                  <MarketplaceTags marketplaces={marketplaceLabels(prod)} />
-                )}
               </div>
 
               {/* --- Card Body --- */}
@@ -734,6 +735,8 @@ export default function ProductScreen() {
                   </div>
                 )}
               </div>
+
+              <SyncedShopFooter connections={syncedMarketplaceConnections(prod)} />
             </div>
           ))}
         </div>
